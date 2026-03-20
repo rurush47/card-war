@@ -1,0 +1,17 @@
+flowchart TD
+    CD["**Cards Domain**
+    - Cards Power Logic"]
+    GL["**Game Logic**"]
+    API["**API**"]
+    CTRL["**Controller**"]
+    AI["**AI Controller**"]
+    VIEW["**View**"]
+    DATA["**Data**
+    • Card • Img"]
+
+    CD --> GL
+    GL <--> API
+    API <--> CTRL
+    CTRL -. "..." .-> AI
+    CTRL <--> VIEW
+    DATA --> VIEW
