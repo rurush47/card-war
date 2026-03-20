@@ -1,0 +1,18 @@
+{
+    "name": "CardWar.Cards.Tests",
+    "rootNamespace": "CardWar",
+    "references": [
+        "GUID:cadd52b8785764dcbba80a4feb094d3e"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
