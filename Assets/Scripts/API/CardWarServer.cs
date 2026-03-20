@@ -1,21 +1,36 @@
-using System.Collections;
-using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
+using CardWar.Game;
 
-namespace CardWar
+namespace CardWar.API
 {
     public class CardWarServer : MonoBehaviour
     {
-        // Start is called before the first frame update
-        void Start()
+        [SerializeField] private int _responseDelayMs = 300;
+
+        private WarGame _game = new WarGame();
+
+        public async ValueTask<StateResponse> PostMove(int playerId, int cardIndex)
         {
-        
+            await Task.Delay(_responseDelayMs);
+            _game.PlayRound();
+            return BuildResponse();
         }
 
-        // Update is called once per frame
-        void Update()
+        public async ValueTask<StateResponse> GetState()
         {
-        
+            await Task.Delay(_responseDelayMs / 2);
+            return BuildResponse();
         }
+
+        private StateResponse BuildResponse() => new StateResponse
+        {
+            GameState = _game.State,
+            PlayerCard = _game.LastPlayerCard,
+            OpponentCard = _game.LastOpponentCard,
+            PlayerCardCount = _game.PlayerCardCount,
+            OpponentCardCount = _game.OpponentCardCount,
+            PotCount = _game.PotCount,
+        };
     }
 }
