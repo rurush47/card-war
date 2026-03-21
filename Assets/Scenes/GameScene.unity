@@ -425,6 +425,7 @@ MonoBehaviour:
   - Player: 2
     Target: {fileID: 85161842}
   _cardViewPrefab: {fileID: 8896011632455626532, guid: d75b20d67bcce3756a39a43c3163e77c, type: 3}
+  _visualConfig: {fileID: 11400000, guid: 816c11734f6eea8ab902f24cbb702290, type: 2}
 --- !u!4 &372081040
 Transform:
   m_ObjectHideFlags: 0

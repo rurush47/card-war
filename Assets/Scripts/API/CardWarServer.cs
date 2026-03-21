@@ -12,36 +12,19 @@ namespace CardWar.API
 
         public CardWarServer()
         {
-            _config = new Dictionary<string, string> { { "max_cards", $"{_game.PlayerCardCount}" }}; 
+            _config = new Dictionary<string, string> { { "max_cards", $"{CardWarGame.MaxCards}" }}; 
         }
 
-        public async ValueTask<StateResponse> PostMove(int playerId, int cardIndex)
+        public async ValueTask<List<(string Action, int PlayerIndex)>> PostMove(int playerId)
         {
             await Task.Delay(_responseDelayMs);
-            _game.PlayRound();
-            return BuildResponse();
+            return _game.PlayRound(playerId);
         }
 
-        public async ValueTask<StateResponse> GetState()
-        {
-            await Task.Delay(_responseDelayMs / 2);
-            return BuildResponse();
-        }
-        
         public async ValueTask<Dictionary<string, string>> GetConfig()
         {
             await Task.Delay(_responseDelayMs / 2);
             return _config;
         }
-
-        private StateResponse BuildResponse() => new StateResponse
-        {
-            GameState = _game.State,
-            PlayerCard = _game.LastPlayerCard,
-            OpponentCard = _game.LastOpponentCard,
-            PlayerCardCount = _game.PlayerCardCount,
-            OpponentCardCount = _game.OpponentCardCount,
-            PotCount = _game.PotCount,
-        };
     }
 }

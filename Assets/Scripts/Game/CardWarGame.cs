@@ -1,6 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using Cards;
+
+[assembly: InternalsVisibleTo("CardWar.Game.Tests")]
 
 namespace CardWar.Game
 {
@@ -16,7 +20,10 @@ namespace CardWar.Game
         }
     }
     
-    public enum GameState { Ongoing, PlayerWon, OpponentWon, Draw }
+    public static class GameCommandExtensions
+    {
+        public static List<(string, int)> ToTupleList(this List<GameCommand> commands) => commands.Select(c => (c.GameAction.ToString(), c.PlayerIndex)).ToList();
+    }
     
     public enum GameAction
     {
@@ -38,8 +45,7 @@ namespace CardWar.Game
         private readonly Dictionary<int, List<Card>> _sidePiles;
         private readonly Dictionary<int, Card?> _pendingCards = new(2);
         private readonly List<Card> _pot = new();
-
-        public GameState State { get; private set; } = GameState.Ongoing;
+        
         public int PlayerCardCount(int playerIndex) => _decks[playerIndex].Count + _sidePiles[playerIndex].Count;
         public int PotCount => _pot.Count;
         private int _currentPlayerIndex = 1;
@@ -58,9 +64,33 @@ namespace CardWar.Game
                 { 1, new List<Card>() },
                 { 2, new List<Card>() }
             };
-            
+            _pendingCards = new Dictionary<int, Card?>
+            {
+                { 1, null },
+                { 2, null }
+            };
+
             for (var i = 0; i < MaxCards/2; i++) _decks[1].Enqueue(deck[i]);
             for (var i = MaxCards/2; i < MaxCards; i++) _decks[2].Enqueue(deck[i]);
+        }
+
+        internal CardWarGame(IEnumerable<Card> player1Cards, IEnumerable<Card> player2Cards)
+        {
+            _decks = new Dictionary<int, Queue<Card>>
+            {
+                { 1, new Queue<Card>(player1Cards) },
+                { 2, new Queue<Card>(player2Cards) }
+            };
+            _sidePiles = new Dictionary<int, List<Card>>
+            {
+                { 1, new List<Card>() },
+                { 2, new List<Card>() }
+            };
+            _pendingCards = new Dictionary<int, Card?>
+            {
+                { 1, null },
+                { 2, null }
+            };
         }
 
         private static List<Card> CreateShuffledDeck()
@@ -75,17 +105,17 @@ namespace CardWar.Game
         
         private int OtherPlayerIndex => _currentPlayerIndex == 1 ? 2 : 1;
 
-        public List<GameCommand> PlayRound(int playerIndex)
+        public List<(string, int)> PlayRound(int playerIndex)
         {
             _gameCommands.Clear();
             
             if (playerIndex == _currentPlayerIndex)
             {
-                RefillIfEmpty(_decks[playerIndex], _sidePiles[playerIndex]);
-                if (_decks.Count == 0)
+                RefillIfEmpty(playerIndex);
+                if (_decks[playerIndex].Count == 0)
                 {
                     _gameCommands.Add(new GameCommand(GameAction.GameOver, OtherPlayerIndex));
-                    return _gameCommands;
+                    return _gameCommands.ToTupleList();
                 }
 
                 _pendingCards[playerIndex] = _decks[playerIndex].Dequeue();
@@ -93,7 +123,10 @@ namespace CardWar.Game
                 _gameCommands.Add(new GameCommand(GameAction.CardPlayed, playerIndex));
 
                 if (!_pendingCards[OtherPlayerIndex].HasValue)
-                    return _gameCommands;
+                {
+                    _currentPlayerIndex = OtherPlayerIndex;
+                    return _gameCommands.ToTupleList();
+                }
             }
             else
             {
@@ -104,9 +137,10 @@ namespace CardWar.Game
             ResolveCards(_pendingCards[1].Value, _pendingCards[2].Value);
             _pendingCards[1] = null;
             _pendingCards[2] = null;
+            _currentPlayerIndex = 1;
             UpdateGameState();
 
-            return _gameCommands;
+            return _gameCommands.ToTupleList();
         }
 
         private void ResolveCards(Card card1, Card card2)
@@ -141,7 +175,6 @@ namespace CardWar.Game
 
             if (!player1CanContinue && !player2CanContinue)
             {
-                State = GameState.Draw;
                 _gameCommands.Add(new GameCommand(GameAction.Draw, 0));
                 return;
             }
@@ -182,9 +215,6 @@ namespace CardWar.Game
 
         private void UpdateGameState()
         {
-            RefillIfEmpty(1);
-            RefillIfEmpty(2);
-
             var player1Empty = PlayerCardCount(1) == 0;
             var player2Empty = PlayerCardCount(2) == 0;
 

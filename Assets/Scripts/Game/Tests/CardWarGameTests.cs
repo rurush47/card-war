@@ -1,388 +1,262 @@
-using System;
-using System.Reflection;
+using System.Collections.Generic;
+using System.Linq;
 using Cards;
 using NUnit.Framework;
 
 namespace CardWar.Game.Tests
 {
-    [TestFixture]
     public class CardWarGameTests
     {
+        // Helper: play a full round (player 1 then player 2) and return player 2's commands
+        private static List<(string, int)> PlayFullRound(CardWarGame game)
+        {
+            game.PlayRound(1);
+            return game.PlayRound(2);
+        }
+
+        private static List<Card> Deck(params (Suit suit, Rank rank)[] cards) =>
+            cards.Select(c => new Card(c.suit, c.rank)).ToList();
+
         [Test]
-        public void Constructor_InitializesGameWithOngoingState()
+        public void InitialState_EachPlayerHas26Cards()
         {
             var game = new CardWarGame();
-
-            Assert.AreEqual(GameState.Ongoing, game.State);
+            Assert.AreEqual(26, game.PlayerCardCount(1));
+            Assert.AreEqual(26, game.PlayerCardCount(2));
         }
 
         [Test]
-        public void Constructor_Distributes52CardsEvenlyBetweenPlayers()
+        public void InitialState_PotIsEmpty()
         {
             var game = new CardWarGame();
-
-            Assert.AreEqual(26, game.PlayerCardCount);
-            Assert.AreEqual(26, game.OpponentCardCount);
-        }
-
-        [Test]
-        public void Constructor_InitializesEmptyPot()
-        {
-            var game = new CardWarGame();
-
             Assert.AreEqual(0, game.PotCount);
         }
 
         [Test]
-        public void PlayRound_UpdatesLastPlayedCards()
+        public void PlayRound_WrongPlayerFirst_ThrowsArgumentException()
         {
-            var game = new CardWarGame();
+            var game = new CardWarGame(
+                Deck((Suit.Hearts, Rank.Ace)),
+                Deck((Suit.Clubs, Rank.Two))
+            );
 
-            game.PlayRound();
-
-            Assert.IsNotNull(game.LastPlayerCard);
-            Assert.IsNotNull(game.LastOpponentCard);
+            Assert.Throws<System.ArgumentException>(() => game.PlayRound(2));
         }
 
         [Test]
-        public void PlayRound_DecreasesTotalCardCountByTwo_WhenNoWar()
+        public void PlayRound_Player1First_ReturnsCardPlayedForPlayer1()
         {
-            var game = CreateGameWithKnownDecks(
-                new[] { new Card(Suit.Hearts, Rank.King) },
-                new[] { new Card(Suit.Clubs, Rank.Two) }
+            var game = new CardWarGame(
+                Deck((Suit.Hearts, Rank.Ace)),
+                Deck((Suit.Clubs, Rank.Two))
             );
 
-            game.PlayRound();
+            var commands = game.PlayRound(1);
 
-            // Player wins both cards (goes to side pile), opponent has none
-            Assert.AreEqual(2, game.PlayerCardCount);
-            Assert.AreEqual(0, game.OpponentCardCount);
+            Assert.AreEqual(1, commands.Count);
+            Assert.AreEqual(("CardPlayed", 1), commands[0]);
         }
 
         [Test]
-        public void PlayRound_PlayerWinsWhenPlayerCardIsHigher()
+        public void PlayRound_Player2Second_ReturnsCardPlayedForPlayer2()
         {
-            var game = CreateGameWithKnownDecks(
-                new[] { new Card(Suit.Hearts, Rank.King) },
-                new[] { new Card(Suit.Clubs, Rank.Two) }
+            var game = new CardWarGame(
+                Deck((Suit.Hearts, Rank.Ace)),
+                Deck((Suit.Clubs, Rank.Two))
             );
+            game.PlayRound(1);
 
-            game.PlayRound();
+            var commands = game.PlayRound(2);
 
-            Assert.AreEqual(2, game.PlayerCardCount);
-            Assert.AreEqual(0, game.OpponentCardCount);
+            Assert.IsTrue(commands.Contains(("CardPlayed", 2)));
         }
 
         [Test]
-        public void PlayRound_OpponentWinsWhenOpponentCardIsHigher()
+        public void PlayRound_Player1HigherRank_WarResolvedForPlayer1()
         {
-            var game = CreateGameWithKnownDecks(
-                new[] { new Card(Suit.Hearts, Rank.Two) },
-                new[] { new Card(Suit.Clubs, Rank.King) }
+            var game = new CardWarGame(
+                Deck((Suit.Hearts, Rank.Ace)),
+                Deck((Suit.Clubs, Rank.Two))
             );
 
-            game.PlayRound();
+            var commands = PlayFullRound(game);
 
-            Assert.AreEqual(0, game.PlayerCardCount);
-            Assert.AreEqual(2, game.OpponentCardCount);
+            Assert.IsTrue(commands.Contains(("WarResolved", 1)));
         }
 
         [Test]
-        public void PlayRound_TriggersWarWhenCardsAreEqual()
+        public void PlayRound_Player2HigherRank_WarResolvedForPlayer2()
         {
-            var game = CreateGameWithKnownDecks(
-                new[] {
-                    new Card(Suit.Hearts, Rank.Five),
-                    new Card(Suit.Hearts, Rank.Two),
-                    new Card(Suit.Hearts, Rank.Three),
-                    new Card(Suit.Hearts, Rank.Four),
-                    new Card(Suit.Hearts, Rank.King)
-                },
-                new[] {
-                    new Card(Suit.Clubs, Rank.Five),
-                    new Card(Suit.Clubs, Rank.Two),
-                    new Card(Suit.Clubs, Rank.Three),
-                    new Card(Suit.Clubs, Rank.Four),
-                    new Card(Suit.Clubs, Rank.Queen)
-                }
+            var game = new CardWarGame(
+                Deck((Suit.Hearts, Rank.Two)),
+                Deck((Suit.Clubs, Rank.Ace))
             );
 
-            game.PlayRound();
+            var commands = PlayFullRound(game);
 
-            // Player should win the war (King > Queen), getting all 10 cards
-            Assert.AreEqual(10, game.PlayerCardCount);
-            Assert.AreEqual(0, game.OpponentCardCount);
+            Assert.IsTrue(commands.Contains(("WarResolved", 2)));
         }
 
         [Test]
-        public void PlayRound_DrawWhenBothPlayersRunOutDuringWar()
+        public void PlayRound_Player1Wins_GetsAllPotCards()
         {
-            var game = CreateGameWithKnownDecks(
-                new[] { new Card(Suit.Hearts, Rank.Five) },
-                new[] { new Card(Suit.Clubs, Rank.Five) }
+            var game = new CardWarGame(
+                Deck((Suit.Hearts, Rank.Ace)),
+                Deck((Suit.Clubs, Rank.Two))
             );
+            var totalBefore = game.PlayerCardCount(1) + game.PlayerCardCount(2);
 
-            game.PlayRound();
+            PlayFullRound(game);
 
-            Assert.AreEqual(GameState.Draw, game.State);
+            Assert.AreEqual(0, game.PotCount);
+            var totalAfter = game.PlayerCardCount(1) + game.PlayerCardCount(2);
+            Assert.AreEqual(totalBefore, totalAfter);
         }
 
         [Test]
-        public void PlayRound_OpponentWinsWhenPlayerCannotContinueWar()
+        public void PlayRound_EqualRanks_TriggersBigPotAndSmallPot()
         {
-            var game = CreateGameWithKnownDecks(
-                new[] {
-                    new Card(Suit.Hearts, Rank.Five),
-                    new Card(Suit.Hearts, Rank.Two),
-                    new Card(Suit.Hearts, Rank.Three)
-                },
-                new[] {
-                    new Card(Suit.Clubs, Rank.Five),
-                    new Card(Suit.Clubs, Rank.Two),
-                    new Card(Suit.Clubs, Rank.Three),
-                    new Card(Suit.Clubs, Rank.Four),
-                    new Card(Suit.Clubs, Rank.Six)
-                }
+            var game = new CardWarGame(
+                Deck((Suit.Hearts, Rank.King), (Suit.Clubs, Rank.Two), (Suit.Diamonds, Rank.Two), (Suit.Spades, Rank.Two), (Suit.Hearts, Rank.Ace)),
+                Deck((Suit.Clubs, Rank.King), (Suit.Hearts, Rank.Three), (Suit.Diamonds, Rank.Three), (Suit.Spades, Rank.Three), (Suit.Clubs, Rank.Two))
             );
 
-            game.PlayRound();
+            var commands = PlayFullRound(game);
 
-            Assert.AreEqual(GameState.OpponentWon, game.State);
+            Assert.IsTrue(commands.Contains(("BigPot", 0)));
+            Assert.IsTrue(commands.Contains(("SmallPot", 0)));
         }
 
         [Test]
-        public void PlayRound_PlayerWinsWhenOpponentCannotContinueWar()
+        public void PlayRound_War_Player1HigherFaceUp_Player1WinsAll()
         {
-            var game = CreateGameWithKnownDecks(
-                new[] {
-                    new Card(Suit.Hearts, Rank.Five),
-                    new Card(Suit.Hearts, Rank.Two),
-                    new Card(Suit.Hearts, Rank.Three),
-                    new Card(Suit.Hearts, Rank.Four),
-                    new Card(Suit.Hearts, Rank.Six)
-                },
-                new[] {
-                    new Card(Suit.Clubs, Rank.Five),
-                    new Card(Suit.Clubs, Rank.Two),
-                    new Card(Suit.Clubs, Rank.Three)
-                }
+            // Tied on Kings; face-up: Ace vs Two → player 1 wins
+            var game = new CardWarGame(
+                Deck((Suit.Hearts, Rank.King), (Suit.Clubs, Rank.Two), (Suit.Diamonds, Rank.Two), (Suit.Spades, Rank.Two), (Suit.Hearts, Rank.Ace)),
+                Deck((Suit.Clubs, Rank.King), (Suit.Hearts, Rank.Three), (Suit.Diamonds, Rank.Three), (Suit.Spades, Rank.Three), (Suit.Clubs, Rank.Two))
             );
 
-            game.PlayRound();
+            var commands = PlayFullRound(game);
 
-            Assert.AreEqual(GameState.PlayerWon, game.State);
-        }
-
-        [Test]
-        public void PlayRound_ThrowsExceptionWhenGameIsOver()
-        {
-            var game = CreateGameWithKnownDecks(
-                new[] { new Card(Suit.Hearts, Rank.King) },
-                new[] { new Card(Suit.Clubs, Rank.Two) }
-            );
-
-            game.PlayRound(); // Player wins
-
-            Assert.Throws<InvalidOperationException>(() => game.PlayRound());
-        }
-
-        [Test]
-        public void State_UpdatesToPlayerWonWhenOpponentRunsOut()
-        {
-            var game = CreateGameWithKnownDecks(
-                new[] { new Card(Suit.Hearts, Rank.King) },
-                new[] { new Card(Suit.Clubs, Rank.Two) }
-            );
-
-            game.PlayRound();
-
-            Assert.AreEqual(GameState.PlayerWon, game.State);
-        }
-
-        [Test]
-        public void State_UpdatesToOpponentWonWhenPlayerRunsOut()
-        {
-            var game = CreateGameWithKnownDecks(
-                new[] { new Card(Suit.Hearts, Rank.Two) },
-                new[] { new Card(Suit.Clubs, Rank.King) }
-            );
-
-            game.PlayRound();
-
-            Assert.AreEqual(GameState.OpponentWon, game.State);
-        }
-
-        [Test]
-        public void PotCount_ClearsAfterWinnerDetermined()
-        {
-            var game = CreateGameWithKnownDecks(
-                new[] { new Card(Suit.Hearts, Rank.King) },
-                new[] { new Card(Suit.Clubs, Rank.Two) }
-            );
-
-            game.PlayRound();
-
+            Assert.IsTrue(commands.Contains(("WarResolved", 1)));
             Assert.AreEqual(0, game.PotCount);
         }
 
         [Test]
-        public void PlayRound_RefillsPlayerDeckFromSidePileWhenEmpty()
+        public void PlayRound_War_Player1TooFewCards_GameOverPlayer2()
         {
-            var game = CreateGameWithKnownDecks(
-                new[] { new Card(Suit.Hearts, Rank.Ace), new Card(Suit.Hearts, Rank.King) },
-                new[] { new Card(Suit.Clubs, Rank.Two), new Card(Suit.Clubs, Rank.Three) }
+            // Player 1 has only 1 card (the tied card), can't supply 4 for war
+            var game = new CardWarGame(
+                Deck((Suit.Hearts, Rank.King)),
+                Deck((Suit.Clubs, Rank.King), (Suit.Hearts, Rank.Two), (Suit.Diamonds, Rank.Two), (Suit.Spades, Rank.Two), (Suit.Clubs, Rank.Two))
             );
 
-            // First round: player wins with Ace > Two
-            game.PlayRound();
-            Assert.AreEqual(3, game.PlayerCardCount); // 1 card left in deck + 2 won
+            var commands = PlayFullRound(game);
 
-            // Second round: player deck has 1 card (King), should win again with King > Three
-            game.PlayRound();
-            Assert.AreEqual(4, game.PlayerCardCount); // All 4 cards now belong to player
+            Assert.IsTrue(commands.Contains(("GameOver", 2)));
         }
 
         [Test]
-        public void PlayRound_RefillsOpponentDeckFromSidePileWhenEmpty()
+        public void PlayRound_War_Player2TooFewCards_GameOverPlayer1()
         {
-            var game = CreateGameWithKnownDecks(
-                new[] { new Card(Suit.Hearts, Rank.Two), new Card(Suit.Hearts, Rank.Three) },
-                new[] { new Card(Suit.Clubs, Rank.Ace), new Card(Suit.Clubs, Rank.King) }
+            var game = new CardWarGame(
+                Deck((Suit.Hearts, Rank.King), (Suit.Clubs, Rank.Two), (Suit.Diamonds, Rank.Two), (Suit.Spades, Rank.Two), (Suit.Clubs, Rank.Three)),
+                Deck((Suit.Clubs, Rank.King))
             );
 
-            // First round: opponent wins with Ace > Two
-            game.PlayRound();
-            Assert.AreEqual(3, game.OpponentCardCount); // 1 card left in deck + 2 won
+            var commands = PlayFullRound(game);
 
-            // Second round: opponent deck has 1 card (King), should win again with King > Three
-            game.PlayRound();
-            Assert.AreEqual(4, game.OpponentCardCount); // All 4 cards now belong to opponent
+            Assert.IsTrue(commands.Contains(("GameOver", 1)));
         }
 
         [Test]
-        public void PlayRound_MultipleWarScenario()
+        public void PlayRound_War_BothTooFewCards_Draw()
         {
-            var game = CreateGameWithKnownDecks(
-                new[] {
-                    new Card(Suit.Hearts, Rank.Five),
-                    new Card(Suit.Hearts, Rank.Two),
-                    new Card(Suit.Hearts, Rank.Three),
-                    new Card(Suit.Hearts, Rank.Four),
-                    new Card(Suit.Hearts, Rank.Six),
-                    new Card(Suit.Hearts, Rank.Seven),
-                    new Card(Suit.Hearts, Rank.Eight),
-                    new Card(Suit.Hearts, Rank.Nine),
-                    new Card(Suit.Hearts, Rank.King)
-                },
-                new[] {
-                    new Card(Suit.Clubs, Rank.Five),
-                    new Card(Suit.Clubs, Rank.Two),
-                    new Card(Suit.Clubs, Rank.Three),
-                    new Card(Suit.Clubs, Rank.Four),
-                    new Card(Suit.Clubs, Rank.Six),
-                    new Card(Suit.Clubs, Rank.Seven),
-                    new Card(Suit.Clubs, Rank.Eight),
-                    new Card(Suit.Clubs, Rank.Nine),
-                    new Card(Suit.Clubs, Rank.Queen)
-                }
+            // Both players have only 1 card (the tied card), can't supply 4 for war
+            var game = new CardWarGame(
+                Deck((Suit.Hearts, Rank.King)),
+                Deck((Suit.Clubs, Rank.King))
             );
 
-            game.PlayRound();
+            var commands = PlayFullRound(game);
 
-            // After two equal cards (5=5, then 6=6), player wins with K>Q
-            Assert.AreEqual(18, game.PlayerCardCount);
-            Assert.AreEqual(0, game.OpponentCardCount);
+            Assert.IsTrue(commands.Contains(("Draw", 0)));
         }
 
         [Test]
-        public void PlayerCardCount_ReturnsCorrectTotalFromDeckAndSidePile()
+        public void PlayRound_Player1OutOfCards_GameOverPlayer2()
         {
-            var game = CreateGameWithKnownDecks(
-                new[] { new Card(Suit.Hearts, Rank.Ace) },
-                new[] { new Card(Suit.Clubs, Rank.Two), new Card(Suit.Clubs, Rank.Three) }
+            // Player 1 has 1 card, player 2 wins it, then player 1 has none
+            var game = new CardWarGame(
+                Deck((Suit.Hearts, Rank.Two)),
+                Deck((Suit.Clubs, Rank.Ace))
             );
 
-            game.PlayRound();
+            var commands = PlayFullRound(game);
 
-            // Player should have won 2 cards, total 2 (0 in deck + 2 in side pile before refill)
-            Assert.AreEqual(2, game.PlayerCardCount);
+            Assert.IsTrue(commands.Contains(("GameOver", 2)));
         }
 
         [Test]
-        public void OpponentCardCount_ReturnsCorrectTotalFromDeckAndSidePile()
+        public void PlayRound_Player2OutOfCards_GameOverPlayer1()
         {
-            var game = CreateGameWithKnownDecks(
-                new[] { new Card(Suit.Hearts, Rank.Two), new Card(Suit.Hearts, Rank.Three) },
-                new[] { new Card(Suit.Clubs, Rank.Ace) }
+            var game = new CardWarGame(
+                Deck((Suit.Hearts, Rank.Ace)),
+                Deck((Suit.Clubs, Rank.Two))
             );
 
-            game.PlayRound();
+            var commands = PlayFullRound(game);
 
-            // Opponent should have won 2 cards, total 2 (0 in deck + 2 in side pile before refill)
-            Assert.AreEqual(2, game.OpponentCardCount);
+            Assert.IsTrue(commands.Contains(("GameOver", 1)));
         }
 
         [Test]
-        public void PlayRound_WarRequiresFourCards_ThreeDownOneFaceUp()
-        {
-            var game = CreateGameWithKnownDecks(
-                new[] {
-                    new Card(Suit.Hearts, Rank.Five),
-                    new Card(Suit.Hearts, Rank.Two),
-                    new Card(Suit.Hearts, Rank.Three),
-                    new Card(Suit.Hearts, Rank.Four),
-                    new Card(Suit.Hearts, Rank.King)
-                },
-                new[] {
-                    new Card(Suit.Clubs, Rank.Five),
-                    new Card(Suit.Clubs, Rank.Two),
-                    new Card(Suit.Clubs, Rank.Three),
-                    new Card(Suit.Clubs, Rank.Four),
-                    new Card(Suit.Clubs, Rank.Two)
-                }
-            );
-
-            int initialTotal = game.PlayerCardCount + game.OpponentCardCount;
-            game.PlayRound();
-
-            // After war, player wins all cards (2 initial + 8 war cards)
-            Assert.AreEqual(initialTotal, game.PlayerCardCount);
-        }
-
-        [Test]
-        public void GameState_RemainsOngoingDuringNormalPlay()
-        {
-            var game = CreateGameWithKnownDecks(
-                new[] { new Card(Suit.Hearts, Rank.King), new Card(Suit.Hearts, Rank.Ace) },
-                new[] { new Card(Suit.Clubs, Rank.Two), new Card(Suit.Clubs, Rank.Three) }
-            );
-
-            game.PlayRound();
-
-            Assert.AreEqual(GameState.Ongoing, game.State);
-        }
-
-        // Helper method to create a game with known decks for testing
-        private CardWarGame CreateGameWithKnownDecks(Card[] playerCards, Card[] opponentCards)
+        public void TotalCardCount_AlwaysConserved_AfterMultipleRounds()
         {
             var game = new CardWarGame();
+            const int total = CardWarGame.MaxCards;
 
-            var playerDeckField = typeof(CardWarGame).GetField("_playerDeck", BindingFlags.NonPublic | BindingFlags.Instance);
-            var opponentDeckField = typeof(CardWarGame).GetField("_opponentDeck", BindingFlags.NonPublic | BindingFlags.Instance);
+            for (int i = 0; i < 10; i++)
+            {
+                game.PlayRound(1);
+                game.PlayRound(2);
+                Assert.AreEqual(total, game.PlayerCardCount(1) + game.PlayerCardCount(2) + game.PotCount);
+            }
+        }
 
-            var playerDeck = new System.Collections.Generic.Queue<Card>();
-            var opponentDeck = new System.Collections.Generic.Queue<Card>();
+        [Test]
+        public void RefillDeck_WhenDeckEmptyAndSidePileHasCards_EmitShuffleThenRefill()
+        {
+            // Player 1 wins all cards first, then plays until deck empty, side pile refills
+            var game = new CardWarGame(
+                Deck((Suit.Hearts, Rank.Ace), (Suit.Diamonds, Rank.Ace)),
+                Deck((Suit.Clubs, Rank.Two), (Suit.Spades, Rank.Two))
+            );
 
-            foreach (var card in playerCards)
-                playerDeck.Enqueue(card);
+            // Round 1: player 1 wins 2 cards into side pile
+            PlayFullRound(game);
+            // Round 2: deck has 1 remaining; player 1 wins 2 more into side pile
+            PlayFullRound(game);
 
-            foreach (var card in opponentCards)
-                opponentDeck.Enqueue(card);
+            // Player 1 now has 0 in main deck, 4 in side pile → next play refills
+            var commands = game.PlayRound(1);
+            Assert.IsTrue(commands.Contains(("ShuffleDeck", 1)));
+            Assert.IsTrue(commands.Contains(("RefillDeck", 1)));
+        }
 
-            playerDeckField.SetValue(game, playerDeck);
-            opponentDeckField.SetValue(game, opponentDeck);
+        [Test]
+        public void PlayRound_AfterResolution_Player1GoesFirst()
+        {
+            var game = new CardWarGame(
+                Deck((Suit.Hearts, Rank.Ace), (Suit.Hearts, Rank.King)),
+                Deck((Suit.Clubs, Rank.Two), (Suit.Clubs, Rank.Three))
+            );
 
-            return game;
+            PlayFullRound(game);
+
+            // After resolution, player 1 must go first again (not player 2)
+            Assert.Throws<System.ArgumentException>(() => game.PlayRound(2));
+            Assert.DoesNotThrow(() => game.PlayRound(1));
         }
     }
 }
