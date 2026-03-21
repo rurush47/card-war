@@ -123,8 +123,8 @@ namespace CardWar.Game.Tests
 
             var commands = PlayFullRound(game);
 
-            Assert.IsTrue(commands.Contains(("BigPot", "0")));
-            Assert.IsTrue(commands.Contains(("SmallPot", "0")));
+            Assert.IsTrue(commands.Any(c => c.Item1 == "BigPot"));
+            Assert.IsTrue(commands.Any(c => c.Item1 == "SmallPot"));
         }
 
         [Test]

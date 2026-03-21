@@ -12,8 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 71d4c96b9abe4dbe818a9f0f4311b46a, type: 3}
   m_Name: VisualConfig
   m_EditorClassIdentifier: 
-  DeckOffset: {x: 50, y: 0}
-  StackOffset: {x: 0.5, y: 0.5}
+  StackOffset: {x: 1, y: 1}
   AddToDeckDuration: 0.2
   CardPlayDuration: 0.35
   CardToStackDuration: 0.25
