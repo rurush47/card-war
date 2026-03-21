@@ -8,6 +8,8 @@ namespace CardWar.Game
 
     public class CardWarGame
     {
+        public const int MaxCards = 52;
+        
         private readonly Queue<Card> _playerDeck;
         private readonly List<Card> _playerSidePile = new List<Card>();
         private readonly Queue<Card> _opponentDeck;
@@ -26,8 +28,8 @@ namespace CardWar.Game
             var deck = CreateShuffledDeck();
             _playerDeck = new Queue<Card>();
             _opponentDeck = new Queue<Card>();
-            for (int i = 0; i < 26; i++) _playerDeck.Enqueue(deck[i]);
-            for (int i = 26; i < 52; i++) _opponentDeck.Enqueue(deck[i]);
+            for (int i = 0; i < MaxCards/2; i++) _playerDeck.Enqueue(deck[i]);
+            for (int i = MaxCards/2; i < MaxCards; i++) _opponentDeck.Enqueue(deck[i]);
         }
 
         private static List<Card> CreateShuffledDeck()

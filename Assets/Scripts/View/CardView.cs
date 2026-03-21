@@ -1,12 +1,14 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
+using CardWar.View.Utils;
 using PrimeTween;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace CardWar.View
 {
-    public class CardView : MonoBehaviour
+    public class CardView : MonoBehaviour, IPoolable
     {
         [SerializeField] private Image _image;
         [SerializeField] private float _flipDuration = 0.3f;
@@ -26,6 +28,13 @@ namespace CardWar.View
             _isFaceUp = false;
             _image.sprite = _backSprite;
         }
+        
+        public void OnPoolRelease()
+        {
+            
+        }
+
+        public event Action ReturnToPool;
 
         /// <summary>
         /// Flips the card with a smooth rotation animation

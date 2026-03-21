@@ -6,15 +6,14 @@ namespace CardWar.View
     public class GameController : MonoBehaviour
     {
         private CardWarServer _server;
-        [SerializeField] private CardView _cardView;
-        [SerializeField] private Sprite _cardSprite;
-        [SerializeField] private Sprite _backSprite;
-
-        private void Start()
+        [SerializeField] private AnimationController _animationController;
+        
+        private async void Start()
         {
             _server = new CardWarServer();
-            var initialGameState = _server.GetState();
-            _cardView.Initialize(_cardSprite, _backSprite);
+            var config = await _server.GetConfig();
+            var initialGameState = await _server.GetState();
+            _animationController.Init(config, initialGameState);
         }
 
         private void InitGameView(StateResponse initialState)
