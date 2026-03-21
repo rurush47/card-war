@@ -2,10 +2,11 @@ using System;
 
 namespace Cards
 {
-    public readonly struct Card : IEquatable<Card>, IComparable<Card>
+    [Serializable]
+    public struct Card : IEquatable<Card>, IComparable<Card>
     {
-        public readonly Suit Suit;
-        public readonly Rank Rank;
+        public Suit Suit;
+        public Rank Rank;
 
         public Card(Suit suit, Rank rank)
         {
