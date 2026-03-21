@@ -1,12 +1,11 @@
 using System.Threading.Tasks;
 using CardWar.Game;
-using UnityEngine;
 
 namespace CardWar.API
 {
-    public class CardWarServer : MonoBehaviour
+    public class CardWarServer
     {
-        [SerializeField] private int _responseDelayMs = 300;
+        private const int _responseDelayMs = 300;
 
         private readonly CardWarGame _game = new();
 

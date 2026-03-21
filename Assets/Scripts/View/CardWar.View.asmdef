@@ -1,7 +1,11 @@
 {
     "name": "CardWar.View",
     "rootNamespace": "CardWar",
-    "references": ["GUID:cadd52b8785764dcbba80a4feb094d3e"],
+    "references": [
+        "GUID:cadd52b8785764dcbba80a4feb094d3e",
+        "GUID:49d72cab47e7c4607aca267026fd0100",
+        "GUID:80ecb87cae9c44d19824e70ea7229748"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
