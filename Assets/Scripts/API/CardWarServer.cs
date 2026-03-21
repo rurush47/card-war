@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
-using UnityEngine;
 using CardWar.Game;
+using UnityEngine;
 
 namespace CardWar.API
 {
@@ -8,7 +8,7 @@ namespace CardWar.API
     {
         [SerializeField] private int _responseDelayMs = 300;
 
-        private WarGame _game = new WarGame();
+        private readonly CardWarGame _game = new();
 
         public async ValueTask<StateResponse> PostMove(int playerId, int cardIndex)
         {

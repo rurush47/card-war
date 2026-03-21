@@ -6,7 +6,7 @@ namespace CardWar.Game
 {
     public enum GameState { Ongoing, PlayerWon, OpponentWon, Draw }
 
-    public class WarGame
+    public class CardWarGame
     {
         private readonly Queue<Card> _playerDeck;
         private readonly List<Card> _playerSidePile = new List<Card>();
@@ -21,7 +21,7 @@ namespace CardWar.Game
         public int OpponentCardCount => _opponentDeck.Count + _opponentSidePile.Count;
         public int PotCount => _pot.Count;
 
-        public WarGame()
+        public CardWarGame()
         {
             var deck = CreateShuffledDeck();
             _playerDeck = new Queue<Card>();

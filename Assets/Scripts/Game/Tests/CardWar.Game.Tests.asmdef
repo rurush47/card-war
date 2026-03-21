@@ -1,8 +1,9 @@
 {
     "name": "CardWar.Game.Tests",
-    "rootNamespace": "",
+    "rootNamespace": "CardWar",
     "references": [
-        "GUID:8c18c62b6d6e340eca6f3290230ef60a"
+        "GUID:8c18c62b6d6e340eca6f3290230ef60a",
+        "GUID:cadd52b8785764dcbba80a4feb094d3e"
     ],
     "includePlatforms": [
         "Editor"
