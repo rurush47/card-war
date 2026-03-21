@@ -55,7 +55,7 @@ namespace CardWar.View
                 var parts = value.Split(':');
                 int.TryParse(parts[0], out var playerIndex);
                 var card = new Card(Enum.Parse<Suit>(parts[1]), Enum.Parse<Rank>(parts[2]));
-                await _animationController.CardPlayed(playerIndex, card, cancellationToken);
+                await _animationController.PlayCard(playerIndex, card, cancellationToken);
                 return;
             }
 

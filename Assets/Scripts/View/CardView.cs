@@ -48,18 +48,14 @@ namespace CardWar.View
 
             _isFaceUp = showFace;
 
-            var startRotation = transform.localEulerAngles;
-            var endRotation = startRotation;
-            endRotation.y = showFace ? 180f : 0f;
+            var midRotation = transform.localEulerAngles + new Vector3(0f, 90f, 0f);
+            var endRotation = transform.localEulerAngles;
 
-            // Create sequence: shrink -> change sprite -> grow
-            await Sequence.Create()
-                .Chain(Tween.LocalRotation(transform, endRotation, _flipDuration / 2, _flipEase))
-                .Group(Tween.Scale(transform, new Vector3(0f, 1f, 1f), _flipDuration / 2, _flipEase));
+            await Tween.LocalRotation(transform, midRotation, _flipDuration / 2, _flipEase);
 
             _image.sprite = showFace ? _cardSprite : _backSprite;
-            
-            await Tween.Scale(transform, Vector3.one, _flipDuration / 2, _flipEase);
+
+            await Tween.LocalRotation(transform, endRotation, _flipDuration / 2, _flipEase);
         }
 
         /// <summary>

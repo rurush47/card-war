@@ -142,12 +142,12 @@ namespace CardWar.View
             }
         }
 
-        public async Task CardPlayed(int playerIndex, Card card, CancellationToken cancellationToken)
+        public async Task PlayCard(int playerIndex, Card card, CancellationToken cancellationToken)
         {
             if (_decks[playerIndex].Count == 0) return;
 
             var cardView = _decks[playerIndex].Pop();
-            var sprite = _cardGraphicsData.CardGraphics.Find(p => p.Card.Equals(card)).Sprite;
+            var sprite = _cardSprites[card];
             cardView.Initialize(sprite, _cardBackSprite);
 
             var targetTransform = _playerTargetCardsPositions.Find(t => t.Player == playerIndex).Target;
@@ -217,7 +217,7 @@ namespace CardWar.View
             await Task.WhenAll(tasks);
         }
 
-        public async Task BigPot(int playerIndex, CancellationToken cancellationToken)
+        public async Task BigPot(int _, CancellationToken cancellationToken)
         {
             for (int i = 0; i < 3; i++)
             {
@@ -229,7 +229,8 @@ namespace CardWar.View
                     var card = _decks[p].Pop();
                     var targetTransform = _playerTargetCardsPositions.Find(t => t.Player == p).Target;
                     var potIndex = _pot.Count;
-                    var worldPos = targetTransform.TransformPoint((Vector3)(potIndex * _visualConfig.DeckOffset));
+                    var dir = p % 2 == 0 ? -1 : 1;
+                    var worldPos = targetTransform.TransformPoint(dir*potIndex * _visualConfig.DeckOffset/5);
 
                     _pot.Add(card);
                     tasks.Add(MoveCardToPotAsync(card, worldPos, targetTransform, potIndex, cancellationToken));
@@ -240,10 +241,10 @@ namespace CardWar.View
             }
         }
 
-        public async Task SmallPot(int playerIndex, CancellationToken cancellationToken)
+        public async Task SmallPot(int _, CancellationToken cancellationToken)
         {
             var tasks = new List<Task>();
-            for (int p = 1; p <= 2; p++)
+            for (var p = 1; p <= 2; p++)
             {
                 if (_decks[p].Count == 0) continue;
 
@@ -259,7 +260,7 @@ namespace CardWar.View
                 ).ContinueWith(_ =>
                 {
                     card.transform.SetParent(targetTransform, false);
-                    card.transform.localPosition = (Vector3)(potIndex * _visualConfig.DeckOffset);
+                    card.transform.localPosition = potIndex * _visualConfig.DeckOffset;
                 }, cancellationToken, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.FromCurrentSynchronizationContext()));
             }
             await Task.WhenAll(tasks);
@@ -269,7 +270,7 @@ namespace CardWar.View
         {
             await card.MoveToPositionAsync(worldPos, _visualConfig.CardPlayDuration, cancellationToken: cancellationToken);
             card.transform.SetParent(parent, false);
-            card.transform.localPosition = (Vector3)(localIndex * _visualConfig.DeckOffset);
+            card.transform.localPosition = localIndex * _visualConfig.DeckOffset;
         }
     }
 }
