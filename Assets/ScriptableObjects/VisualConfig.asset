@@ -12,13 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 71d4c96b9abe4dbe818a9f0f4311b46a, type: 3}
   m_Name: VisualConfig
   m_EditorClassIdentifier: 
-  DeckOffset: {x: 25, y: 0}
+  DeckOffset: {x: 50, y: 0}
   StackOffset: {x: 0.5, y: 0.5}
   AddToDeckDuration: 0.2
   CardPlayDuration: 0.35
   CardToStackDuration: 0.25
   CardDelayBetweenSends: 0.05
-  ShuffleMoveDuration: 0.15
-  ShuffleRotationAmount: 10
-  ShuffleOffsetAmount: 2
-  ShuffleIterations: 3

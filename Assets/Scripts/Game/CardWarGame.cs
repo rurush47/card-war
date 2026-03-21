@@ -180,10 +180,10 @@ namespace CardWar.Game
                 _pot.Add(_decks[2].Dequeue());
             }
 
-            _gameCommands.Add((nameof(GameAction.SmallPot), "0"));
             // 1 face-up card each
             var playerFaceUp = _decks[1].Dequeue();
             var opponentFaceUp = _decks[2].Dequeue();
+            _gameCommands.Add((nameof(GameAction.SmallPot), $"{playerFaceUp.Suit}:{playerFaceUp.Rank}|{opponentFaceUp.Suit}:{opponentFaceUp.Rank}"));
             _pot.Add(playerFaceUp);
             _pot.Add(opponentFaceUp);
 

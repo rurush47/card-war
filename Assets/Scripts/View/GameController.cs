@@ -81,7 +81,12 @@ namespace CardWar.View
                     await _animationController.BigPot(pi, cancellationToken);
                     break;
                 case "SmallPot":
-                    await _animationController.SmallPot(pi, cancellationToken);
+                    var cardParts = value.Split('|');
+                    var p1Parts = cardParts[0].Split(':');
+                    var p2Parts = cardParts[1].Split(':');
+                    var card1 = new Card(Enum.Parse<Suit>(p1Parts[0]), Enum.Parse<Rank>(p1Parts[1]));
+                    var card2 = new Card(Enum.Parse<Suit>(p2Parts[0]), Enum.Parse<Rank>(p2Parts[1]));
+                    await _animationController.SmallPot(card1, card2, cancellationToken);
                     break;
             }
         }
