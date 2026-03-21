@@ -1,6 +1,8 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using CardWar.API;
+using Cards;
 using UnityEngine;
 
 namespace CardWar.View
@@ -17,9 +19,11 @@ namespace CardWar.View
             _animationController.Init(config);
         }
 
+        private bool _animationsRunning;
+        
         private void Update()
         {
-            if (Input.GetMouseButtonDown(0))
+            if (Input.GetMouseButtonDown(0) && !_animationsRunning)
             {
                 Play();
             }
@@ -27,45 +31,57 @@ namespace CardWar.View
 
         private async void Play()
         {
-            var result = await _server.PostMove(1);
             // TODO
             // if(!result.Success)
             //     handle error
 
+            _animationsRunning = true;
             var cancellationToken = new CancellationToken();
-            foreach (var (action, playerIndex) in result)
-            {
-                await ResolveAction(action, playerIndex, cancellationToken);
-            }
+            
+            var result = await _server.PostMove(1);
+            foreach (var (action, value) in result)
+                await ResolveAction(action, value, cancellationToken);
+
+            result = await _server.PostMove(2);
+            foreach (var (action, value) in result)
+                await ResolveAction(action, value, cancellationToken);
+            _animationsRunning = false;
         }
         
-        private async ValueTask ResolveAction(string action, int playerIndex, CancellationToken cancellationToken)
+        private async ValueTask ResolveAction(string action, string value, CancellationToken cancellationToken)
         {
+            if (action == "CardPlayed")
+            {
+                var parts = value.Split(':');
+                int.TryParse(parts[0], out var playerIndex);
+                var card = new Card(Enum.Parse<Suit>(parts[1]), Enum.Parse<Rank>(parts[2]));
+                await _animationController.CardPlayed(playerIndex, card, cancellationToken);
+                return;
+            }
+
+            int.TryParse(value, out var pi);
             switch (action)
             {
                 case "ShuffleDeck":
-                    await _animationController.ShuffleDeck(playerIndex, cancellationToken);
+                    await _animationController.ShuffleDeck(pi, cancellationToken);
                     break;
                 case "RefillDeck":
-                    await _animationController.RefillDeck(playerIndex, cancellationToken);
+                    await _animationController.RefillDeck(pi, cancellationToken);
                     break;
                 case "GameOver":
-                    await _animationController.GameOver(playerIndex, cancellationToken);
-                    break;
-                case "CardPlayed":
-                    await _animationController.CardPlayed(playerIndex, cancellationToken);
+                    await _animationController.GameOver(pi, cancellationToken);
                     break;
                 case "WarResolved":
-                    await _animationController.WarResolved(playerIndex, cancellationToken);
+                    await _animationController.WarResolved(pi, cancellationToken);
                     break;
                 case "Draw":
-                    await _animationController.Draw(playerIndex, cancellationToken);
+                    await _animationController.Draw(pi, cancellationToken);
                     break;
                 case "BigPot":
-                    await _animationController.BigPot(playerIndex, cancellationToken);
+                    await _animationController.BigPot(pi, cancellationToken);
                     break;
                 case "SmallPot":
-                    await _animationController.SmallPot(playerIndex, cancellationToken);
+                    await _animationController.SmallPot(pi, cancellationToken);
                     break;
             }
         }

@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using CardWar.View.Data;
 using CardWar.View.Utils;
+using Cards;
 using PrimeTween;
 using UnityEngine;
 
@@ -25,10 +26,14 @@ namespace CardWar.View
         [Header("Refs")]
         [SerializeField] private CardView _cardViewPrefab;
         [SerializeField] private VisualConfig _visualConfig;
+        [SerializeField] private CardGraphicsData _cardGraphicsData;
+        [SerializeField] private Sprite _cardBackSprite;
         
         private GameObjectPool<CardView> _cardPool;
         private Dictionary<int, Stack<CardView>> _stacks;
         private Dictionary<int, Stack<CardView>> _decks;
+        private Dictionary<Card, Sprite> _cardSprites;
+        private readonly List<CardView> _pot = new();
         
         public async void Init(Dictionary<string, string> config)
         {
@@ -45,6 +50,7 @@ namespace CardWar.View
                 { 1, new Stack<CardView>(maxCards) },
                 { 2, new Stack<CardView>(maxCards) },
             };
+            _cardSprites = _cardGraphicsData.CardGraphics.ToDictionary(p => p.Card, p => p.Sprite);
             
             for (int p = 1; p <= 2; p++)
             {
@@ -61,6 +67,7 @@ namespace CardWar.View
             }
             
             await RefillDeck(1);
+            await RefillDeck(2);
         }
 
         public async ValueTask RefillDeck(int playerIndex, CancellationToken cancellationToken = default)
@@ -70,13 +77,13 @@ namespace CardWar.View
             var deckPosition = _playerDeckPositions.Find(t => t.Player == playerIndex).Target;
 
             var tasks = new List<Task>();
-
+            
             while (stack.Count > 0)
             {
                 var cardView = stack.Pop();
                 var cardIndex = deck.Count;
 
-                var task = MoveCardToDeckAsync(cardView, deckPosition, cardIndex, cancellationToken);
+                var task = MoveCardToDeckAsync(cardView, deckPosition, cardIndex, playerIndex == 1 ? 1 : -1, cancellationToken);
                 tasks.Add(task);
 
                 deck.Push(cardView);
@@ -87,14 +94,14 @@ namespace CardWar.View
             await Task.WhenAll(tasks);
         }
 
-        private async Task MoveCardToDeckAsync(CardView cardView, Transform deckPosition, int deckIndex, CancellationToken cancellationToken)
+        private async Task MoveCardToDeckAsync(CardView cardView, Transform deckPosition, int deckIndex, int dir, CancellationToken cancellationToken)
         {
             await Tween
                 .Position(cardView.transform, deckPosition.position, _visualConfig.AddToDeckDuration, Ease.OutQuad)
                 .ToTask(cancellationToken);
 
             cardView.transform.SetParent(deckPosition, false);
-            cardView.transform.localPosition = Vector2.zero + deckIndex * _visualConfig.DeckOffset;
+            cardView.transform.localPosition = Vector2.zero + dir*deckIndex * _visualConfig.DeckOffset;
         }
 
         public async Task ShuffleDeck(int playerIndex, CancellationToken cancellationToken)
@@ -135,34 +142,134 @@ namespace CardWar.View
             }
         }
 
-        public async Task CardPlayed(int playerIndex, CancellationToken cancellationToken)
+        public async Task CardPlayed(int playerIndex, Card card, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            if (_decks[playerIndex].Count == 0) return;
+
+            var cardView = _decks[playerIndex].Pop();
+            var sprite = _cardGraphicsData.CardGraphics.Find(p => p.Card.Equals(card)).Sprite;
+            cardView.Initialize(sprite, _cardBackSprite);
+
+            var targetTransform = _playerTargetCardsPositions.Find(t => t.Player == playerIndex).Target;
+
+            await Task.WhenAll(
+                cardView.MoveToPositionAsync(targetTransform.position, _visualConfig.CardPlayDuration, cancellationToken: cancellationToken),
+                cardView.FlipToFaceAsync(cancellationToken).AsTask()
+            );
+
+            cardView.transform.SetParent(targetTransform, false);
+            cardView.transform.localPosition = Vector3.zero;
+            _pot.Add(cardView);
         }
 
         public async Task GameOver(int playerIndex, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            if (playerIndex == 0) return;
+            var stack = _stacks[playerIndex];
+            if (stack.Count > 0)
+                await stack.Peek().HighlightAsync(1.3f, cancellationToken);
         }
 
         public async Task WarResolved(int playerIndex, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            var stackParent = _playerStackPositions.Find(t => t.Player == playerIndex).Target;
+            var stack = _stacks[playerIndex];
+
+            var potCards = _pot.ToList();
+            _pot.Clear();
+
+            var tasks = new List<Task>();
+            for (int i = 0; i < potCards.Count; i++)
+            {
+                var stackIndex = stack.Count + i;
+                tasks.Add(MovePotCardToStack(potCards[i], stackIndex, stackParent, cancellationToken));
+            }
+
+            foreach (var card in potCards)
+                stack.Push(card);
+
+            await Task.WhenAll(tasks);
+        }
+
+        private async Task MovePotCardToStack(CardView card, int stackIndex, Transform stackParent, CancellationToken cancellationToken)
+        {
+            var worldPos = stackParent.TransformPoint((Vector3)(stackIndex * _visualConfig.StackOffset));
+
+            await Task.WhenAll(
+                card.MoveToPositionAsync(worldPos, _visualConfig.CardToStackDuration, cancellationToken: cancellationToken),
+                card.FlipToBackAsync(cancellationToken).AsTask()
+            );
+
+            card.transform.SetParent(stackParent, false);
+            card.transform.localPosition = (Vector3)(stackIndex * _visualConfig.StackOffset);
         }
 
         public async Task Draw(int playerIndex, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            var tasks = new List<Task>();
+            for (int p = 1; p <= 2; p++)
+            {
+                if (_decks[p].Count > 0)
+                    tasks.Add(_decks[p].Peek().ShakeAsync(cancellationToken: cancellationToken));
+                if (_stacks[p].Count > 0)
+                    tasks.Add(_stacks[p].Peek().ShakeAsync(cancellationToken: cancellationToken));
+            }
+            await Task.WhenAll(tasks);
         }
 
         public async Task BigPot(int playerIndex, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            for (int i = 0; i < 3; i++)
+            {
+                var tasks = new List<Task>();
+                for (int p = 1; p <= 2; p++)
+                {
+                    if (_decks[p].Count == 0) continue;
+
+                    var card = _decks[p].Pop();
+                    var targetTransform = _playerTargetCardsPositions.Find(t => t.Player == p).Target;
+                    var potIndex = _pot.Count;
+                    var worldPos = targetTransform.TransformPoint((Vector3)(potIndex * _visualConfig.DeckOffset));
+
+                    _pot.Add(card);
+                    tasks.Add(MoveCardToPotAsync(card, worldPos, targetTransform, potIndex, cancellationToken));
+                }
+
+                await Task.WhenAll(tasks);
+                await Task.Delay(TimeSpan.FromSeconds(_visualConfig.CardDelayBetweenSends), cancellationToken);
+            }
         }
 
         public async Task SmallPot(int playerIndex, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            var tasks = new List<Task>();
+            for (int p = 1; p <= 2; p++)
+            {
+                if (_decks[p].Count == 0) continue;
+
+                var card = _decks[p].Pop();
+                var targetTransform = _playerTargetCardsPositions.Find(t => t.Player == p).Target;
+                var potIndex = _pot.Count;
+                var worldPos = targetTransform.TransformPoint((Vector3)(potIndex * _visualConfig.DeckOffset));
+
+                _pot.Add(card);
+                tasks.Add(Task.WhenAll(
+                    card.MoveToPositionAsync(worldPos, _visualConfig.CardPlayDuration, cancellationToken: cancellationToken),
+                    card.FlipToFaceAsync(cancellationToken).AsTask()
+                ).ContinueWith(_ =>
+                {
+                    card.transform.SetParent(targetTransform, false);
+                    card.transform.localPosition = (Vector3)(potIndex * _visualConfig.DeckOffset);
+                }, cancellationToken, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.FromCurrentSynchronizationContext()));
+            }
+            await Task.WhenAll(tasks);
+        }
+
+        private async Task MoveCardToPotAsync(CardView card, Vector3 worldPos, Transform parent, int localIndex, CancellationToken cancellationToken)
+        {
+            await card.MoveToPositionAsync(worldPos, _visualConfig.CardPlayDuration, cancellationToken: cancellationToken);
+            card.transform.SetParent(parent, false);
+            card.transform.localPosition = (Vector3)(localIndex * _visualConfig.DeckOffset);
         }
     }
 }

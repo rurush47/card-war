@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using Cards;
 
@@ -8,23 +7,6 @@ using Cards;
 
 namespace CardWar.Game
 {
-    public struct GameCommand
-    {
-        public GameAction GameAction;
-        public int PlayerIndex;
-
-        public GameCommand(GameAction gameAction, int playerIndex)
-        {
-            GameAction = gameAction;
-            PlayerIndex = playerIndex;
-        }
-    }
-    
-    public static class GameCommandExtensions
-    {
-        public static List<(string, int)> ToTupleList(this List<GameCommand> commands) => commands.Select(c => (c.GameAction.ToString(), c.PlayerIndex)).ToList();
-    }
-    
     public enum GameAction
     {
         ShuffleDeck,
@@ -36,7 +18,7 @@ namespace CardWar.Game
         BigPot,
         SmallPot
     }
-    
+
     public class CardWarGame
     {
         public const int MaxCards = 52;
@@ -45,11 +27,11 @@ namespace CardWar.Game
         private readonly Dictionary<int, List<Card>> _sidePiles;
         private readonly Dictionary<int, Card?> _pendingCards = new(2);
         private readonly List<Card> _pot = new();
-        
+
         public int PlayerCardCount(int playerIndex) => _decks[playerIndex].Count + _sidePiles[playerIndex].Count;
         public int PotCount => _pot.Count;
         private int _currentPlayerIndex = 1;
-        private List<GameCommand> _gameCommands = new();
+        private List<(string, string)> _gameCommands = new();
 
         public CardWarGame()
         {
@@ -102,30 +84,31 @@ namespace CardWar.Game
             Shuffle(deck);
             return deck;
         }
-        
+
         private int OtherPlayerIndex => _currentPlayerIndex == 1 ? 2 : 1;
 
-        public List<(string, int)> PlayRound(int playerIndex)
+        public List<(string, string)> PlayRound(int playerIndex)
         {
             _gameCommands.Clear();
-            
+
             if (playerIndex == _currentPlayerIndex)
             {
                 RefillIfEmpty(playerIndex);
                 if (_decks[playerIndex].Count == 0)
                 {
-                    _gameCommands.Add(new GameCommand(GameAction.GameOver, OtherPlayerIndex));
-                    return _gameCommands.ToTupleList();
+                    _gameCommands.Add((nameof(GameAction.GameOver), OtherPlayerIndex.ToString()));
+                    return _gameCommands;
                 }
 
-                _pendingCards[playerIndex] = _decks[playerIndex].Dequeue();
-                _pot.Add(_pendingCards[playerIndex].Value);
-                _gameCommands.Add(new GameCommand(GameAction.CardPlayed, playerIndex));
+                var card = _decks[playerIndex].Dequeue();
+                _pendingCards[playerIndex] = card;
+                _pot.Add(card);
+                _gameCommands.Add((nameof(GameAction.CardPlayed), $"{playerIndex}:{card.Suit}:{card.Rank}"));
 
                 if (!_pendingCards[OtherPlayerIndex].HasValue)
                 {
                     _currentPlayerIndex = OtherPlayerIndex;
-                    return _gameCommands.ToTupleList();
+                    return _gameCommands;
                 }
             }
             else
@@ -140,7 +123,7 @@ namespace CardWar.Game
             _currentPlayerIndex = 1;
             UpdateGameState();
 
-            return _gameCommands.ToTupleList();
+            return _gameCommands;
         }
 
         private void ResolveCards(Card card1, Card card2)
@@ -149,13 +132,13 @@ namespace CardWar.Game
             if (cmp > 0)
             {
                 AwardPotTo(_sidePiles[1]);
-                _gameCommands.Add(new GameCommand(GameAction.WarResolved, 1));
+                _gameCommands.Add((nameof(GameAction.WarResolved), "1"));
                 return;
             }
             else if (cmp < 0)
             {
                 AwardPotTo(_sidePiles[2]);
-                _gameCommands.Add(new GameCommand(GameAction.WarResolved, 2));
+                _gameCommands.Add((nameof(GameAction.WarResolved), "2"));
                 return;
             }
             else
@@ -175,29 +158,29 @@ namespace CardWar.Game
 
             if (!player1CanContinue && !player2CanContinue)
             {
-                _gameCommands.Add(new GameCommand(GameAction.Draw, 0));
+                _gameCommands.Add((nameof(GameAction.Draw), "0"));
                 return;
             }
             if (!player1CanContinue)
             {
-                _gameCommands.Add(new GameCommand(GameAction.GameOver, 2));
+                _gameCommands.Add((nameof(GameAction.GameOver), "2"));
                 return;
             }
             if (!player2CanContinue)
             {
-                _gameCommands.Add(new GameCommand(GameAction.GameOver, 1));
+                _gameCommands.Add((nameof(GameAction.GameOver), "1"));
                 return;
             }
 
             // 3 face-down cards each
-            _gameCommands.Add(new GameCommand(GameAction.BigPot, 0));
+            _gameCommands.Add((nameof(GameAction.BigPot), "0"));
             for (int i = 0; i < 3; i++)
             {
                 _pot.Add(_decks[1].Dequeue());
                 _pot.Add(_decks[2].Dequeue());
             }
 
-            _gameCommands.Add(new GameCommand(GameAction.SmallPot, 0));
+            _gameCommands.Add((nameof(GameAction.SmallPot), "0"));
             // 1 face-up card each
             var playerFaceUp = _decks[1].Dequeue();
             var opponentFaceUp = _decks[2].Dequeue();
@@ -220,29 +203,26 @@ namespace CardWar.Game
 
             if (player1Empty && player2Empty)
             {
-                _gameCommands.Add(new GameCommand(GameAction.Draw, 0));
-                return;
+                _gameCommands.Add((nameof(GameAction.Draw), "0"));
             }
             else if (player1Empty)
             {
-                _gameCommands.Add(new GameCommand(GameAction.GameOver, 2));
-                return;
+                _gameCommands.Add((nameof(GameAction.GameOver), "2"));
             }
             else if (player2Empty)
             {
-                _gameCommands.Add(new GameCommand(GameAction.GameOver, 1));
-                return;
+                _gameCommands.Add((nameof(GameAction.GameOver), "1"));
             }
         }
 
         private void RefillIfEmpty(int playerIndex)
         {
             if (_decks[playerIndex].Count > 0 || _sidePiles[playerIndex].Count == 0) return;
-            _gameCommands.Add(new GameCommand(GameAction.ShuffleDeck, playerIndex));
+            _gameCommands.Add((nameof(GameAction.ShuffleDeck), playerIndex.ToString()));
             Shuffle(_sidePiles[playerIndex]);
             foreach (var card in _sidePiles[playerIndex]) _decks[playerIndex].Enqueue(card);
             _sidePiles[playerIndex].Clear();
-            _gameCommands.Add(new GameCommand(GameAction.RefillDeck, playerIndex));
+            _gameCommands.Add((nameof(GameAction.RefillDeck), playerIndex.ToString()));
         }
 
         private static void Shuffle<T>(List<T> list)

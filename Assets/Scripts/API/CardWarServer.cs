@@ -15,7 +15,7 @@ namespace CardWar.API
             _config = new Dictionary<string, string> { { "max_cards", $"{CardWarGame.MaxCards}" }}; 
         }
 
-        public async ValueTask<List<(string Action, int PlayerIndex)>> PostMove(int playerId)
+        public async ValueTask<List<(string Action, string PlayerIndex)>> PostMove(int playerId)
         {
             await Task.Delay(_responseDelayMs);
             return _game.PlayRound(playerId);
