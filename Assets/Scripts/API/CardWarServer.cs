@@ -18,15 +18,13 @@ namespace CardWar.API
 
     public class CardWarServer
     {
-        private const int _responseDelayMs = 300;
-        private const int _slowResponseDelayMs = 3000;
-        private const double _errorRate = 0.1;
-        private const double _slowResponseRate = 0.15;
         private readonly CardWarGame _game;
+        private readonly ServerConfig _config;
         private readonly Random _random = new();
 
-        public CardWarServer(bool useMiniDeck = false)
+        public CardWarServer(bool useMiniDeck, ServerConfig config)
         {
+            _config = config;
             var deckDefinition = useMiniDeck ? DeckDefinitions.MiniDeck : DeckDefinitions.FullDeck;
             _game = new CardWarGame(deckDefinition);
         }
@@ -54,19 +52,19 @@ namespace CardWar.API
         {
             var roll = _random.NextDouble();
 
-            if (roll < _errorRate)
+            if (roll < _config.ErrorRate)
             {
-                await Task.Delay(_responseDelayMs / 2, cancellationToken);
+                await Task.Delay(_config.ResponseDelayMs / 2, cancellationToken);
                 throw new ServerException(500, "Internal Server Error: something went wrong on the server.");
             }
 
-            if (roll < _errorRate + _slowResponseRate)
+            if (roll < _config.ErrorRate + _config.SlowResponseRate)
             {
-                await Task.Delay(_slowResponseDelayMs, cancellationToken);
+                await Task.Delay(_config.SlowResponseDelayMs, cancellationToken);
                 return;
             }
 
-            await Task.Delay(_responseDelayMs, cancellationToken);
+            await Task.Delay(_config.ResponseDelayMs, cancellationToken);
         }
     }
 }

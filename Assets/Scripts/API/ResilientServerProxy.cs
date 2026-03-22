@@ -2,20 +2,22 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using UnityEngine;
 
 namespace CardWar.API
 {
     public class ResilientServerProxy
     {
-        private const int _maxRetries = 3;
-        private const int _timeoutMs = 2000;
-        private const int _baseRetryDelayMs = 500;
-        private readonly CardWarServer _server;
+        public event Action<bool> ConnectionTroubleChanged;
 
-        public ResilientServerProxy(CardWarServer server)
+        private readonly CardWarServer _server;
+        private readonly ResilienceConfig _config;
+        private readonly GameLogger _logger = new("Resilience");
+        private bool _hasConnectionTrouble;
+
+        public ResilientServerProxy(CardWarServer server, ResilienceConfig config)
         {
             _server = server;
+            _config = config;
         }
 
         public ValueTask<Dictionary<string, string>> PostMove(int playerId, CancellationToken cancellationToken)
@@ -51,35 +53,50 @@ namespace CardWar.API
             string operationName,
             CancellationToken cancellationToken)
         {
-            for (var attempt = 0; attempt <= _maxRetries; attempt++)
+            var maxAttempts = _config.MaxRetries + 1;
+
+            for (var attempt = 0; attempt < maxAttempts; attempt++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                using var timeoutCts = new CancellationTokenSource(_timeoutMs);
+                using var timeoutCts = new CancellationTokenSource(_config.TimeoutMs);
                 using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
 
                 try
                 {
-                    return await action(linkedCts.Token);
+                    var result = await action(linkedCts.Token);
+                    SetConnectionTrouble(false);
+                    return result;
                 }
                 catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
                 {
-                    Debug.LogWarning($"[{operationName}] Request timed out (attempt {attempt + 1}/{_maxRetries + 1})");
+                    _logger.LogWarning($"{operationName} timed out (attempt {attempt + 1}/{maxAttempts})");
                 }
                 catch (ServerException e)
                 {
-                    Debug.LogWarning($"[{operationName}] Server error {e.StatusCode}: {e.Message} (attempt {attempt + 1}/{_maxRetries + 1})");
+                    _logger.LogWarning($"{operationName} server error {e.StatusCode}: {e.Message} (attempt {attempt + 1}/{maxAttempts})");
                 }
 
-                if (attempt < _maxRetries)
+                SetConnectionTrouble(true);
+
+                if (attempt < _config.MaxRetries)
                 {
-                    var delay = _baseRetryDelayMs * (1 << attempt); // exponential backoff
-                    Debug.Log($"[{operationName}] Retrying in {delay}ms...");
+                    var delay = _config.BaseRetryDelayMs * (1 << attempt);
+                    _logger.Log($"{operationName} retrying in {delay}ms...");
                     await Task.Delay(delay, cancellationToken);
                 }
             }
 
-            throw new ServerException(0, $"[{operationName}] All {_maxRetries + 1} attempts failed.");
+            throw new ServerException(0, $"{operationName} failed after {maxAttempts} attempts.");
+        }
+
+        private void SetConnectionTrouble(bool value)
+        {
+            if (_hasConnectionTrouble == value)
+                return;
+
+            _hasConnectionTrouble = value;
+            ConnectionTroubleChanged?.Invoke(value);
         }
     }
 }

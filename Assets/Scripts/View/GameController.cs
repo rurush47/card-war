@@ -3,27 +3,36 @@ using System.Threading;
 using System.Threading.Tasks;
 using CardWar.API;
 using Cards;
+using PrimeTween;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace CardWar.View
 {
     public class GameController : MonoBehaviour
     {
         [SerializeField] private AnimationController _animationController;
+        [SerializeField] private Image _connectionErrorIcon;
         [SerializeField] private MessageModal _messageModal;
+        [SerializeField] private ResilienceConfig _resilienceConfig;
+        [SerializeField] private ServerConfig _serverConfig;
         [SerializeField] private bool _useMiniDeck;
-        
+
         private ResilientServerProxy _server;
+        private readonly GameLogger _logger = new("Game");
+        private Tween _connectionErrorTween;
         private CancellationTokenSource _gameCancellationTokenSource = new();
         private CancellationToken _gameCancellationToken => _gameCancellationTokenSource.Token;
         private int _playerIndex = 1;
         private int _cpuIndex = 2;
         private bool _actionOngoing;
-        
+
         private async void Start()
         {
-            _server = new ResilientServerProxy(new CardWarServer(_useMiniDeck));
-            
+            _server = new ResilientServerProxy(new CardWarServer(_useMiniDeck, _serverConfig), _resilienceConfig);
+            _server.ConnectionTroubleChanged += OnConnectionTroubleChanged;
+            _connectionErrorIcon.gameObject.SetActive(false);
+
             _actionOngoing = true;
             try
             {
@@ -32,11 +41,11 @@ namespace CardWar.View
             }
             catch (Exception e)
             {
-                Debug.LogException(e);
+                _logger.LogException(e);
             }
             _actionOngoing = false;
         }
-        
+
         private void Update()
         {
             if (Input.GetMouseButtonDown(0) && !_actionOngoing)
@@ -58,20 +67,20 @@ namespace CardWar.View
             }
             catch (ArgumentException e)
             {
-                Debug.LogError("Wrong player index played!\n" + e);
+                _logger.LogError("Wrong player index played!\n" + e);
             }
             catch (InvalidOperationException e)
             {
-                Debug.LogError("Game trying to be played while already finished!\n" + e);
+                _logger.LogError("Game trying to be played while already finished!\n" + e);
             }
             catch (ServerException e)
             {
-                Debug.LogError($"Server unreachable after retries: {e.Message}");
+                _logger.LogError($"Server unreachable after retries: {e.Message}");
             }
             catch (Exception e)
             {
                 //general exception, should not happen
-                Debug.LogException(e);
+                _logger.LogException(e);
             }
             finally
             {
@@ -92,7 +101,7 @@ namespace CardWar.View
             foreach (var (action, value) in result)
                 await ResolveAction(action, value, _gameCancellationToken);
         }
-        
+
         private async ValueTask ResolveAction(string action, string value, CancellationToken cancellationToken)
         {
             int playerIndex;
@@ -154,7 +163,7 @@ namespace CardWar.View
             int.TryParse(parts[0], out var playerIndex);
             return (playerIndex, new Card(Enum.Parse<Suit>(parts[1]), Enum.Parse<Rank>(parts[2])));
         }
-        
+
         private (Card Card1, Card Card2) ParsePotCards(string value)
         {
             var cardParts = value.Split('|');
@@ -165,8 +174,25 @@ namespace CardWar.View
             return (card1, card2);
         }
 
+        private void OnConnectionTroubleChanged(bool hasTrouble)
+        {
+            if (hasTrouble)
+            {
+                _connectionErrorIcon.gameObject.SetActive(true);
+                _connectionErrorTween = Tween.Alpha(_connectionErrorIcon, 0.3f, 1f, 0.5f, Ease.InOutSine, -1);
+            }
+            else
+            {
+                _connectionErrorTween.Stop();
+                _connectionErrorIcon.gameObject.SetActive(false);
+            }
+        }
+
         private void OnDestroy()
         {
+            if (_server != null)
+                _server.ConnectionTroubleChanged -= OnConnectionTroubleChanged;
+            _connectionErrorTween.Stop();
             _gameCancellationTokenSource.Cancel();
             _gameCancellationTokenSource.Dispose();
         }
