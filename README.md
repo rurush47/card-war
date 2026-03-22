@@ -16,7 +16,4 @@
 - object pooling
 
 ## TODO
-- [ ] Shuffle fix
-- [ ] Game over hadling
-- [ ] Communication modal
 - [ ] final readme
