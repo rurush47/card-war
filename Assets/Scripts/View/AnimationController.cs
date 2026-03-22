@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using CardWar.View.Data;
 using CardWar.View.Utils;
 using Cards;
+using CardWar.View.Utils.CustomExceptions;
 using PrimeTween;
 using UnityEngine;
 
@@ -34,16 +35,26 @@ namespace CardWar.View
         private Dictionary<int, Stack<CardView>> _decks;
         private Dictionary<Card, Sprite> _cardSprites;
         private readonly List<CardView> _pot = new();
-        private float ScreenWidthWithOffset => _screenWidth - _screenOffset ;
+        private float ScreenWidthWithOffset => _screenWidth - _visualConfig.ScreenOffset;
         private float _screenWidth;
-        private float _screenOffset = 300;
-        private int _potScale = 150;
         
-        public async void Init(Dictionary<string, string> config)
+        public async void Init(Dictionary<string, string> config, CancellationToken cancellationToken = default)
         {
-            int.TryParse(config["max_cards"], out var maxCards);
+            if(!int.TryParse(config["max_cards"], out var maxCards) || maxCards < 1)
+            {
+                throw new CardsCountNotValidException(maxCards);
+            }
             _screenWidth = Screen.width;
             
+            InitDataStructures(maxCards);
+            InitCardsPool(maxCards);
+            
+            await RefillDeck(1, cancellationToken);
+            await RefillDeck(2, cancellationToken);
+        }
+
+        private void InitDataStructures(int maxCards)
+        {
             _cardPool = new GameObjectPool<CardView>(_cardViewPrefab, maxCards);
             _stacks = new Dictionary<int, Stack<CardView>>
             {
@@ -56,7 +67,10 @@ namespace CardWar.View
                 { 2, new Stack<CardView>(maxCards) },
             };
             _cardSprites = _cardGraphicsData.CardGraphics.ToDictionary(p => p.Card, p => p.Sprite);
-            
+        }
+
+        private void InitCardsPool(int maxCards)
+        {
             for (var p = 1; p <= 2; p++)
             {
                 var parent = _playerStackPositions.Find(t => t.Player == p).Target;
@@ -70,9 +84,6 @@ namespace CardWar.View
                     _stacks[p].Push(newCard);
                 }
             }
-            
-            await RefillDeck(1);
-            await RefillDeck(2);
         }
 
         public async ValueTask RefillDeck(int playerIndex, CancellationToken cancellationToken = default)
@@ -116,7 +127,7 @@ namespace CardWar.View
             var deck = _decks[playerIndex];
             if (deck.Count == 0) return;
 
-            await deck.Peek().ShakeAsync(cancellationToken: cancellationToken);
+            await deck.Peek().ShakeAsync(duration: _visualConfig.ShuffleDuration, cancellationToken: cancellationToken);
         }
 
         public async Task PlayCard(int playerIndex, Card card, CancellationToken cancellationToken)
@@ -144,11 +155,13 @@ namespace CardWar.View
             if (playerIndex == 0) return;
             var stack = _stacks[playerIndex];
             if (stack.Count > 0)
-                await stack.Peek().HighlightAsync(1.3f, cancellationToken);
+                await stack.Peek().HighlightAsync(cancellationToken);
         }
 
         public async Task WarResolved(int playerIndex, CancellationToken cancellationToken)
         {
+            await Task.Delay(TimeSpan.FromSeconds(_visualConfig.WarResolutionDelay), cancellationToken);
+            
             var stackParent = _playerStackPositions.Find(t => t.Player == playerIndex).Target;
             var stack = _stacks[playerIndex];
 
@@ -178,20 +191,12 @@ namespace CardWar.View
             );
 
             card.transform.SetParent(stackParent, false);
-            card.transform.localPosition = (Vector3)(stackIndex * _visualConfig.StackOffset);
+            card.transform.localPosition = stackIndex * _visualConfig.StackOffset;
         }
 
-        public async Task Draw(int playerIndex, CancellationToken cancellationToken)
+        public async Task Draw(int _, CancellationToken cancellationToken)
         {
-            var tasks = new List<Task>();
-            for (int p = 1; p <= 2; p++)
-            {
-                if (_decks[p].Count > 0)
-                    tasks.Add(_decks[p].Peek().ShakeAsync(cancellationToken: cancellationToken));
-                if (_stacks[p].Count > 0)
-                    tasks.Add(_stacks[p].Peek().ShakeAsync(cancellationToken: cancellationToken));
-            }
-            await Task.WhenAll(tasks);
+            //TODO modal
         }
 
         public async Task BigPot(int _, CancellationToken cancellationToken)
@@ -207,7 +212,7 @@ namespace CardWar.View
                     var targetTransform = _playerTargetCardsPositions.Find(t => t.Player == p).Target;
                     var potIndex = _pot.Count;
                     var dir = p == 2 ? -1 : 1;
-                    var worldPos = targetTransform.TransformPoint(dir * potIndex * ScreenWidthWithOffset / _potScale * Vector2.right);
+                    var worldPos = targetTransform.TransformPoint(dir * potIndex * ScreenWidthWithOffset / _visualConfig.PotScale * Vector2.right);
 
                     _pot.Add(card);
                     tasks.Add(MoveCardToPotAsync(card, worldPos, targetTransform, dir * potIndex, cancellationToken));
@@ -232,7 +237,7 @@ namespace CardWar.View
                 var targetTransform = _playerTargetCardsPositions.Find(t => t.Player == p).Target;
                 var potIndex = _pot.Count;
                 var dir = p == 2 ? -1 : 1;
-                var localOffset = dir * potIndex * ScreenWidthWithOffset / _potScale * Vector2.right;
+                var localOffset = dir * potIndex * ScreenWidthWithOffset / _visualConfig.PotScale * Vector2.right;
                 var worldPos = targetTransform.TransformPoint(localOffset);
 
                 _pot.Add(cardView);
@@ -252,7 +257,7 @@ namespace CardWar.View
         {
             await card.MoveToPositionAsync(worldPos, _visualConfig.CardPlayDuration, cancellationToken: cancellationToken);
             card.transform.SetParent(parent, false);
-            card.transform.localPosition = localIndex * ScreenWidthWithOffset / _potScale * Vector2.right;
+            card.transform.localPosition = localIndex * ScreenWidthWithOffset / _visualConfig.PotScale * Vector2.right;
         }
     }
 }

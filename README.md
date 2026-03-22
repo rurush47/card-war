@@ -3,6 +3,9 @@
 
 - use value tasks instead of unitask
 - put in diagram in final readme
+- centralized exception handling
+- cantralized config
+- pooling
 
 ## Controller
 - Timeout, server error handling
@@ -14,5 +17,6 @@
 
 ## TODO
 - [ ] Shuffle fix
+- [ ] Game over hadling
 - [ ] Communication modal
 - [ ] final readme

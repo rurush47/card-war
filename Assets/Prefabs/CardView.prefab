@@ -50,8 +50,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _image: {fileID: 762195082638776453}
-  _flipDuration: 0.3
-  _flipEase: 9
+  _visualConfig: {fileID: 11400000, guid: 816c11734f6eea8ab902f24cbb702290, type: 2}
 --- !u!1 &9015937196178674151
 GameObject:
   m_ObjectHideFlags: 0

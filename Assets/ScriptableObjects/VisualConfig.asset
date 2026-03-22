@@ -17,3 +17,6 @@ MonoBehaviour:
   CardPlayDuration: 0.35
   CardToStackDuration: 0.25
   CardDelayBetweenSends: 0.05
+  WarResolutionDelay: 1
+  ScreenOffset: 300
+  PotScale: 150
