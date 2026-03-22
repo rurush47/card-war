@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Cards;
-using UnityEditor.Experimental.GraphView;
 
 [assembly: InternalsVisibleTo("CardWar.Game.Tests")]
 
@@ -24,18 +23,27 @@ namespace CardWar.Game
     {
         public const int MaxCards = 52;
 
-        private readonly Dictionary<int, Queue<Card>> _decks;
-        private readonly Dictionary<int, List<Card>> _sidePiles;
-        private readonly Dictionary<int, Card?> _pendingCards = new(2);
+        private Dictionary<int, Queue<Card>> _decks;
+        private Dictionary<int, List<Card>> _sidePiles;
+        private Dictionary<int, Card?> _pendingCards = new(2);
         private readonly List<Card> _pot = new();
         private readonly Dictionary<string, string> _gameCommands = new();
 
         public int PlayerCardCount(int playerIndex) => _decks[playerIndex].Count + _sidePiles[playerIndex].Count;
         public int PotCount => _pot.Count;
         private int _currentPlayerIndex = 1;
+        private bool _gameFinished;
 
         public CardWarGame()
         {
+            SetUp();
+        }
+
+        private void SetUp()
+        {
+            _gameCommands.Clear();
+            _gameFinished = false;
+            
             var deck = CreateShuffledDeck();
             _decks = new Dictionary<int, Queue<Card>>
             {
@@ -90,36 +98,39 @@ namespace CardWar.Game
 
         public Dictionary<string, string> PlayRound(int playerIndex)
         {
-            _gameCommands.Clear();
-
-            if (playerIndex == _currentPlayerIndex)
-            {
-                RefillIfEmpty(playerIndex);
-                if (_decks[playerIndex].Count == 0)
-                {
-                    _gameCommands.Add(nameof(GameAction.GameOver), OtherPlayerIndex.ToString());
-                    return _gameCommands;
-                }
-
-                var card = _decks[playerIndex].Dequeue();
-                _pendingCards[playerIndex] = card;
-                _pot.Add(card);
-                _gameCommands.Add(nameof(GameAction.CardPlayed), $"{playerIndex}:{card.Suit}:{card.Rank}");
-
-                if (!_pendingCards[OtherPlayerIndex].HasValue)
-                {
-                    _currentPlayerIndex = OtherPlayerIndex;
-                    return _gameCommands;
-                }
-            }
-            else
+            if (playerIndex != _currentPlayerIndex)
             {
                 throw new ArgumentException("Wrong player index: " + playerIndex + ", current player index: " + _currentPlayerIndex);
             }
+            if (_gameFinished)
+            {
+                throw new InvalidOperationException("Game already finished");
+            }
+            
+            _gameCommands.Clear();
+            
+            RefillIfEmpty(playerIndex);
+            if (_decks[playerIndex].Count == 0)
+            {
+                _gameCommands.Add(nameof(GameAction.GameOver), OtherPlayerIndex.ToString());
+                return _gameCommands;
+            }
 
+            var card = _decks[playerIndex].Dequeue();
+            _pendingCards[playerIndex] = card;
+            _pot.Add(card);
+            _gameCommands.Add(nameof(GameAction.CardPlayed), $"{playerIndex}:{card.Suit}:{card.Rank}");
+
+            if (!_pendingCards[OtherPlayerIndex].HasValue)
+            {
+                _currentPlayerIndex = OtherPlayerIndex;
+                return _gameCommands;
+            }
+            
             // Both cards played, resolve
             if(ResolveCards(_pendingCards[1].Value, _pendingCards[2].Value, _gameCommands))
             {
+                FinishGame();
                 return _gameCommands;
             }
             
@@ -127,10 +138,18 @@ namespace CardWar.Game
             _pendingCards[2] = null;
             _currentPlayerIndex = 1;
 
-            UpdateGameState(_gameCommands);
+            if (UpdateGameState(_gameCommands))
+            {
+                FinishGame();
+            }
             return _gameCommands;
         }
 
+        private void FinishGame()
+        {
+            _gameFinished = true;
+        }
+        
         /// <summary>
         /// Resolve cards and return true if game ended, false if game should continue.
         /// </summary>

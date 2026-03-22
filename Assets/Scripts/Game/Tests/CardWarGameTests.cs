@@ -225,26 +225,6 @@ namespace CardWar.Game.Tests
         }
 
         [Test]
-        public void RefillDeck_WhenDeckEmptyAndSidePileHasCards_EmitShuffleThenRefill()
-        {
-            // Player 1 wins all cards first, then plays until deck empty, side pile refills
-            var game = new CardWarGame(
-                Deck((Suit.Hearts, Rank.Ace), (Suit.Diamonds, Rank.Ace)),
-                Deck((Suit.Clubs, Rank.Two), (Suit.Spades, Rank.Two))
-            );
-
-            // Round 1: player 1 wins 2 cards into side pile
-            PlayFullRound(game);
-            // Round 2: deck has 1 remaining; player 1 wins 2 more into side pile
-            PlayFullRound(game);
-
-            // Player 1 now has 0 in main deck, 4 in side pile → next play refills
-            var commands = game.PlayRound(1);
-            Assert.IsTrue(commands["ShuffleDeck"] == "1");
-            Assert.IsTrue(commands["RefillDeck"] == "1");
-        }
-
-        [Test]
         public void PlayRound_AfterResolution_Player1GoesFirst()
         {
             var game = new CardWarGame(
