@@ -11,6 +11,7 @@ namespace CardWar.View
     {
         [SerializeField] private AnimationController _animationController;
         [SerializeField] private MessageModal _messageModal;
+        [SerializeField] private bool _useMiniDeck;
         
         private CardWarServer _server;
         private CancellationTokenSource _gameCancellationTokenSource = new();
@@ -20,7 +21,7 @@ namespace CardWar.View
         
         private async void Start()
         {
-            _server = new CardWarServer();
+            _server = new CardWarServer(_useMiniDeck);
             
             _ongoingAction = true;
             try
@@ -115,7 +116,7 @@ namespace CardWar.View
 
         private async ValueTask RestartGame()
         {
-            await _server.PostRestart(_gameCancellationToken);
+            await _server.PostRestart(_useMiniDeck, _gameCancellationToken);
             var config = await _server.GetConfig(_gameCancellationToken);
             await _animationController.Init(config, _gameCancellationToken);
         }

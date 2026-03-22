@@ -20,7 +20,7 @@ namespace CardWar.Game.Tests
         [Test]
         public void InitialState_EachPlayerHas26Cards()
         {
-            var game = new CardWarGame();
+            var game = new CardWarGame(DeckDefinitions.FullDeck);
             Assert.AreEqual(26, game.PlayerCardCount(1));
             Assert.AreEqual(26, game.PlayerCardCount(2));
         }
@@ -28,7 +28,7 @@ namespace CardWar.Game.Tests
         [Test]
         public void InitialState_PotIsEmpty()
         {
-            var game = new CardWarGame();
+            var game = new CardWarGame(DeckDefinitions.FullDeck);
             Assert.AreEqual(0, game.PotCount);
         }
 
@@ -213,8 +213,8 @@ namespace CardWar.Game.Tests
         [Test]
         public void TotalCardCount_AlwaysConserved_AfterMultipleRounds()
         {
-            var game = new CardWarGame();
-            const int total = CardWarGame.MaxCards;
+            var game = new CardWarGame(DeckDefinitions.FullDeck);
+            const int total = 52;
 
             for (int i = 0; i < 10; i++)
             {

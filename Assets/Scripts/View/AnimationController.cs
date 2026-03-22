@@ -35,6 +35,7 @@ namespace CardWar.View
         private Dictionary<int, Stack<CardView>> _decks;
         private Dictionary<Card, Sprite> _cardSprites;
         private readonly List<CardView> _pot = new();
+        private readonly List<CardView> _allCards = new(52);
         private float ScreenWidthWithOffset => _screenWidth - _visualConfig.ScreenOffset;
         private float _screenWidth;
         
@@ -57,25 +58,10 @@ namespace CardWar.View
 
         private void ResetState()
         {
-            for (int p = 1; p <= 2; p++)
-            {
-                foreach (var card in _stacks[p])
-                {
-                    card.InvokeReturnToPool();
-                }
-                _stacks[p].Clear();
-                foreach (var card in _decks[p])
-                {
-                    card.InvokeReturnToPool();
-                }
-                _decks[p].Clear();
-            }
-
-            foreach (var card in _pot)
+            foreach (var card in _allCards)
             {
                 card.InvokeReturnToPool();
             }
-            _pot.Clear();
         }
 
         private void InitDataStructures(int maxCards)
@@ -105,6 +91,7 @@ namespace CardWar.View
                     newCard.transform.SetParent(parent, false);
                     newCard.transform.localScale = Vector3.one;
                     newCard.transform.localPosition = Vector2.zero + c*0.5f*_visualConfig.StackOffset; 
+                    _allCards.Add(newCard);
                     
                     _stacks[p].Push(newCard);
                 }

@@ -21,19 +21,6 @@ namespace CardWar.Game
 
     public class CardWarGame
     {
-        public const int MaxCards = 52;
-
-        public const string FullDeck =
-            "Clubs:Two,Clubs:Three,Clubs:Four,Clubs:Five,Clubs:Six,Clubs:Seven,Clubs:Eight,Clubs:Nine,Clubs:Ten,Clubs:Jack,Clubs:Queen,Clubs:King,Clubs:Ace," +
-            "Diamonds:Two,Diamonds:Three,Diamonds:Four,Diamonds:Five,Diamonds:Six,Diamonds:Seven,Diamonds:Eight,Diamonds:Nine,Diamonds:Ten,Diamonds:Jack,Diamonds:Queen,Diamonds:King,Diamonds:Ace," +
-            "Hearts:Two,Hearts:Three,Hearts:Four,Hearts:Five,Hearts:Six,Hearts:Seven,Hearts:Eight,Hearts:Nine,Hearts:Ten,Hearts:Jack,Hearts:Queen,Hearts:King,Hearts:Ace," +
-            "Spades:Two,Spades:Three,Spades:Four,Spades:Five,Spades:Six,Spades:Seven,Spades:Eight,Spades:Nine,Spades:Ten,Spades:Jack,Spades:Queen,Spades:King,Spades:Ace";
-
-        // 8 cards (4 per player) — game ends in a few rounds; useful for testing GameOver and Draw
-        public const string MiniDeck =
-            "Hearts:Ace,Hearts:King,Hearts:Queen,Hearts:Jack," +
-            "Clubs:Two,Clubs:Three,Clubs:Four,Clubs:Five";
-
         private Dictionary<int, Queue<Card>> _decks;
         private Dictionary<int, List<Card>> _sidePiles;
         private Dictionary<int, Card?> _pendingCards = new(2);
@@ -42,15 +29,17 @@ namespace CardWar.Game
 
         public int PlayerCardCount(int playerIndex) => _decks[playerIndex].Count + _sidePiles[playerIndex].Count;
         public int PotCount => _pot.Count;
+        public int CardsCount => _cardsCount;
         private int _currentPlayerIndex = 1;
         private bool _gameFinished;
+        private int _cardsCount;
 
-        public CardWarGame(string deckDefinition = FullDeck)
+        public CardWarGame(string deckDefinition)
         {
             SetUp(deckDefinition);
         }
 
-        public void Restart(string deckDefinition = FullDeck)
+        public void Restart(string deckDefinition)
         {
             SetUp(deckDefinition);
         }
@@ -61,6 +50,7 @@ namespace CardWar.Game
             _gameFinished = false;
 
             var deck = ParseDeck(deckDefinition);
+            _cardsCount = deck.Count;
             var half = deck.Count / 2;
             _decks = new Dictionary<int, Queue<Card>>
             {
@@ -293,6 +283,11 @@ namespace CardWar.Game
                 int j = rng.Next(i + 1);
                 (list[i], list[j]) = (list[j], list[i]);
             }
+        }
+
+        public Dictionary<string, string> GetConfig()
+        {
+            return new() { { "max_cards", $"{_cardsCount}" } };
         }
     }
 }
