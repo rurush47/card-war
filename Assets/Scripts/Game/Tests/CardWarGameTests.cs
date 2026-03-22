@@ -8,7 +8,7 @@ namespace CardWar.Game.Tests
     public class CardWarGameTests
     {
         // Helper: play a full round (player 1 then player 2) and return player 2's commands
-        private static List<(string, string)> PlayFullRound(CardWarGame game)
+        private static Dictionary<string, string> PlayFullRound(CardWarGame game)
         {
             game.PlayRound(1);
             return game.PlayRound(2);
@@ -54,7 +54,7 @@ namespace CardWar.Game.Tests
             var commands = game.PlayRound(1);
 
             Assert.AreEqual(1, commands.Count);
-            Assert.AreEqual(("CardPlayed", "1:Hearts:Ace"), commands[0]);
+            Assert.AreEqual("1:Hearts:Ace", commands["CardPlayed"]);
         }
 
         [Test]
@@ -68,7 +68,7 @@ namespace CardWar.Game.Tests
 
             var commands = game.PlayRound(2);
 
-            Assert.IsTrue(commands.Contains(("CardPlayed", "2:Clubs:Two")));
+            Assert.IsTrue(commands["CardPlayed"] == "2:Clubs:Two");
         }
 
         [Test]
@@ -81,7 +81,7 @@ namespace CardWar.Game.Tests
 
             var commands = PlayFullRound(game);
 
-            Assert.IsTrue(commands.Contains(("WarResolved", "1")));
+            Assert.IsTrue(commands["WarResolved"] == "1");
         }
 
         [Test]
@@ -94,7 +94,7 @@ namespace CardWar.Game.Tests
 
             var commands = PlayFullRound(game);
 
-            Assert.IsTrue(commands.Contains(("WarResolved", "2")));
+            Assert.IsTrue(commands["WarResolved"] == "2");
         }
 
         [Test]
@@ -123,8 +123,8 @@ namespace CardWar.Game.Tests
 
             var commands = PlayFullRound(game);
 
-            Assert.IsTrue(commands.Any(c => c.Item1 == "BigPot"));
-            Assert.IsTrue(commands.Any(c => c.Item1 == "SmallPot"));
+            Assert.IsTrue(commands.Any(c => c.Key == "BigPot"));
+            Assert.IsTrue(commands.Any(c => c.Key == "SmallPot"));
         }
 
         [Test]
@@ -138,7 +138,7 @@ namespace CardWar.Game.Tests
 
             var commands = PlayFullRound(game);
 
-            Assert.IsTrue(commands.Contains(("WarResolved", "1")));
+            Assert.IsTrue(commands["WarResolved"] == "1");
             Assert.AreEqual(0, game.PotCount);
         }
 
@@ -153,7 +153,7 @@ namespace CardWar.Game.Tests
 
             var commands = PlayFullRound(game);
 
-            Assert.IsTrue(commands.Contains(("GameOver", "2")));
+            Assert.IsTrue(commands["GameOver"] == "2");
         }
 
         [Test]
@@ -166,7 +166,7 @@ namespace CardWar.Game.Tests
 
             var commands = PlayFullRound(game);
 
-            Assert.IsTrue(commands.Contains(("GameOver", "1")));
+            Assert.IsTrue(commands["GameOver"] == "1");
         }
 
         [Test]
@@ -180,7 +180,7 @@ namespace CardWar.Game.Tests
 
             var commands = PlayFullRound(game);
 
-            Assert.IsTrue(commands.Contains(("Draw", "0")));
+            Assert.IsTrue(commands["Draw"] == "0");
         }
 
         [Test]
@@ -194,7 +194,7 @@ namespace CardWar.Game.Tests
 
             var commands = PlayFullRound(game);
 
-            Assert.IsTrue(commands.Contains(("GameOver", "2")));
+            Assert.IsTrue(commands["GameOver"] == "2");
         }
 
         [Test]
@@ -207,7 +207,7 @@ namespace CardWar.Game.Tests
 
             var commands = PlayFullRound(game);
 
-            Assert.IsTrue(commands.Contains(("GameOver", "1")));
+            Assert.IsTrue(commands["GameOver"] == "1");
         }
 
         [Test]
@@ -240,8 +240,8 @@ namespace CardWar.Game.Tests
 
             // Player 1 now has 0 in main deck, 4 in side pile → next play refills
             var commands = game.PlayRound(1);
-            Assert.IsTrue(commands.Contains(("ShuffleDeck", "1")));
-            Assert.IsTrue(commands.Contains(("RefillDeck", "1")));
+            Assert.IsTrue(commands["ShuffleDeck"] == "1");
+            Assert.IsTrue(commands["RefillDeck"] == "1");
         }
 
         [Test]

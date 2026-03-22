@@ -4,7 +4,7 @@ using PrimeTween;
 
 namespace CardWar.View.Utils
 {
-    public static class TweenExtensions
+    public static class Extensions
     {
         public static async Task ToTask(this Tween tween, CancellationToken cancellationToken = default)
         {
@@ -21,7 +21,7 @@ namespace CardWar.View.Utils
 
             cancellationToken.ThrowIfCancellationRequested();
         }
-        
+
         public static async ValueTask ToValueTask(this Tween tween, CancellationToken cancellationToken = default)
         {
             if (cancellationToken.IsCancellationRequested)
@@ -33,22 +33,6 @@ namespace CardWar.View.Utils
             await using (cancellationToken.Register(tween.Stop))
             {
                 await tween;
-            }
-
-            cancellationToken.ThrowIfCancellationRequested();
-        }
-        
-        public static async Task ToTask(this Sequence sequence, CancellationToken cancellationToken = default)
-        {
-            if (cancellationToken.IsCancellationRequested)
-            {
-                sequence.Stop();
-                cancellationToken.ThrowIfCancellationRequested();
-            }
-
-            await using (cancellationToken.Register(sequence.Stop))
-            {
-                await sequence;
             }
 
             cancellationToken.ThrowIfCancellationRequested();
