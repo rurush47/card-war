@@ -18,12 +18,13 @@ namespace CardWar.View
         private CancellationToken _gameCancellationToken => _gameCancellationTokenSource.Token;
         private int _playerIndex = 1;
         private int _cpuIndex = 2;
+        private bool _actionOngoing;
         
         private async void Start()
         {
             _server = new CardWarServer(_useMiniDeck);
             
-            _ongoingAction = true;
+            _actionOngoing = true;
             try
             {
                 var config = await _server.GetConfig(_gameCancellationToken);
@@ -33,14 +34,12 @@ namespace CardWar.View
             {
                 Debug.LogException(e);
             }
-            _ongoingAction = false;
+            _actionOngoing = false;
         }
-
-        private bool _ongoingAction;
         
         private void Update()
         {
-            if (Input.GetMouseButtonDown(0) && !_ongoingAction)
+            if (Input.GetMouseButtonDown(0) && !_actionOngoing)
             {
                 HandlePlay();
             }
@@ -50,16 +49,29 @@ namespace CardWar.View
         {
             try
             {
-                _ongoingAction = true;
+                _actionOngoing = true;
                 await HandleMove();
+            }
+            catch (OperationCanceledException)
+            {
+                //operation canceled, normal behavior
+            }
+            catch (ArgumentException e)
+            {
+                Debug.LogError("Wrong player index played!\n" + e);
+            }
+            catch (InvalidOperationException e)
+            {
+                Debug.LogError("Game trying to be played while already finished!\n" + e);
             }
             catch (Exception e)
             {
+                //general exception, should not happen
                 Debug.LogException(e);
             }
             finally
             {
-                _ongoingAction = false;
+                _actionOngoing = false;
             }
         }
 

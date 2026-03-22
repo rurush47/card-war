@@ -29,7 +29,6 @@ namespace CardWar.Game
 
         public int PlayerCardCount(int playerIndex) => _decks[playerIndex].Count + _sidePiles[playerIndex].Count;
         public int PotCount => _pot.Count;
-        public int CardsCount => _cardsCount;
         private int _currentPlayerIndex = 1;
         private bool _gameFinished;
         private int _cardsCount;
