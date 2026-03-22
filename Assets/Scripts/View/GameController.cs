@@ -13,7 +13,7 @@ namespace CardWar.View
         [SerializeField] private MessageModal _messageModal;
         [SerializeField] private bool _useMiniDeck;
         
-        private CardWarServer _server;
+        private ResilientServerProxy _server;
         private CancellationTokenSource _gameCancellationTokenSource = new();
         private CancellationToken _gameCancellationToken => _gameCancellationTokenSource.Token;
         private int _playerIndex = 1;
@@ -22,7 +22,7 @@ namespace CardWar.View
         
         private async void Start()
         {
-            _server = new CardWarServer(_useMiniDeck);
+            _server = new ResilientServerProxy(new CardWarServer(_useMiniDeck));
             
             _actionOngoing = true;
             try
@@ -63,6 +63,10 @@ namespace CardWar.View
             catch (InvalidOperationException e)
             {
                 Debug.LogError("Game trying to be played while already finished!\n" + e);
+            }
+            catch (ServerException e)
+            {
+                Debug.LogError($"Server unreachable after retries: {e.Message}");
             }
             catch (Exception e)
             {
