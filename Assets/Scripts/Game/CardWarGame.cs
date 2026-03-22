@@ -266,7 +266,9 @@ namespace CardWar.Game
 
         private void RefillIfEmpty(int playerIndex)
         {
-            if (_decks[playerIndex].Count > 0 || _sidePiles[playerIndex].Count == 0) return;
+            if (_decks[playerIndex].Count > 0 || _sidePiles[playerIndex].Count == 0) 
+                return;
+            
             _gameCommands.Add(nameof(GameAction.ShuffleDeck), playerIndex.ToString());
             Shuffle(_sidePiles[playerIndex]);
             foreach (var card in _sidePiles[playerIndex]) _decks[playerIndex].Enqueue(card);

@@ -136,10 +136,10 @@ namespace CardWar.View
 
         public async Task ShuffleDeck(int playerIndex, CancellationToken cancellationToken)
         {
-            var deck = _decks[playerIndex];
-            if (deck.Count == 0) return;
+            var newDeck = _stacks[playerIndex];
+            if (newDeck.Count == 0) return;
 
-            await deck.Peek().ShakeAsync(duration: _visualConfig.ShuffleDuration, cancellationToken: cancellationToken);
+            await newDeck.Peek().ShakeAsync(duration: _visualConfig.ShuffleDuration, cancellationToken: cancellationToken);
         }
 
         public async Task PlayCard(int playerIndex, Card card, CancellationToken cancellationToken)
