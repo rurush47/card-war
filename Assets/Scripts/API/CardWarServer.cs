@@ -22,5 +22,11 @@ namespace CardWar.API
             await Task.Delay(_responseDelayMs / 2, cancellationToken);
             return _config;
         }
+
+        public async ValueTask PostRestart(CancellationToken cancellationToken)
+        {
+            await Task.Delay(_responseDelayMs, cancellationToken);
+            _game.Restart();
+        }
     }
 }

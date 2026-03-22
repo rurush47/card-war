@@ -35,6 +35,11 @@ namespace CardWar.View
         {
         }
 
+        public void InvokeReturnToPool()
+        {
+            ReturnToPool?.Invoke();
+        }
+
         public async ValueTask FlipAsync(bool showFace, CancellationToken cancellationToken = default)
         {
             if (_isFaceUp == showFace)

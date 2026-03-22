@@ -38,6 +38,11 @@ namespace CardWar.Game
         {
             SetUp();
         }
+        
+        public void Restart()
+        {
+            SetUp();
+        }
 
         private void SetUp()
         {

@@ -10,43 +10,69 @@ namespace CardWar.View
     public class GameController : MonoBehaviour
     {
         [SerializeField] private AnimationController _animationController;
+        [SerializeField] private MessageModal _messageModal;
         private CardWarServer _server;
         private CancellationTokenSource _gameCancellationTokenSource = new();
         private CancellationToken _gameCancellationToken => _gameCancellationTokenSource.Token;
+        private int _playerIndex = 1;
+        private int _cpuIndex = 2;
         
         private async void Start()
         {
             _server = new CardWarServer();
-            var config = await _server.GetConfig(_gameCancellationToken);
-            _animationController.Init(config, _gameCancellationToken);
+            
+            _ongoingAction = true;
+            try
+            {
+                var config = await _server.GetConfig(_gameCancellationToken);
+                await _animationController.Init(config, _gameCancellationToken);
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+            }
+            _ongoingAction = false;
         }
 
-        private bool _animationsRunning;
+        private bool _ongoingAction;
         
         private void Update()
         {
-            if (Input.GetMouseButtonDown(0) && !_animationsRunning)
+            if (Input.GetMouseButtonDown(0) && !_ongoingAction)
             {
-                Play();
+                HandlePlay();
             }
         }
 
-        private async void Play()
+        private async void HandlePlay()
         {
-            // TODO
-            // if(!result.Success)
-            //     handle error
+            try
+            {
+                _ongoingAction = true;
+                await HandleMove();
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+            }
+            finally
+            {
+                _ongoingAction = false;
+            }
+        }
 
-            _animationsRunning = true;
-            
-            var result = await _server.PostMove(1, _gameCancellationToken);
+        private async ValueTask HandleMove()
+        {
+            await MovePlayer(_playerIndex);
+            //auto move cpu
+            await MovePlayer(_cpuIndex);
+        }
+
+        private async ValueTask MovePlayer(int index)
+        {
+            var result = await _server.PostMove(index, _gameCancellationToken);
             foreach (var (action, value) in result)
                 await ResolveAction(action, value, _gameCancellationToken);
-
-            result = await _server.PostMove(2, _gameCancellationToken);
-            foreach (var (action, value) in result)
-                await ResolveAction(action, value, _gameCancellationToken);
-            _animationsRunning = false;
         }
         
         private async ValueTask ResolveAction(string action, string value, CancellationToken cancellationToken)
@@ -66,17 +92,9 @@ namespace CardWar.View
                     playerIndex = int.Parse(value);
                     await _animationController.RefillDeck(playerIndex, cancellationToken);
                     break;
-                case "GameOver":
-                    playerIndex = int.Parse(value);
-                    await _animationController.GameOver(playerIndex, cancellationToken);
-                    break;
                 case "WarResolved":
                     playerIndex = int.Parse(value);
                     await _animationController.WarResolved(playerIndex, cancellationToken);
-                    break;
-                case "Draw":
-                    playerIndex = int.Parse(value);
-                    await _animationController.Draw(playerIndex, cancellationToken);
                     break;
                 case "BigPot":
                     playerIndex = int.Parse(value);
@@ -86,7 +104,30 @@ namespace CardWar.View
                     var cards = ParsePotCards(value);
                     await _animationController.SmallPot(cards.Card1, cards.Card2, cancellationToken);
                     break;
+                case "Draw":
+                case "GameOver":
+                    await HandleGameOver(value, cancellationToken);
+                    await RestartGame();
+                    break;
             }
+        }
+
+        private async ValueTask RestartGame()
+        {
+            await _server.PostRestart(_gameCancellationToken);
+            var config = await _server.GetConfig(_gameCancellationToken);
+            await _animationController.Init(config, _gameCancellationToken);
+        }
+
+        private async Task HandleGameOver(string value, CancellationToken cancellationToken)
+        {
+            var playerIndex = int.Parse(value);
+            if (playerIndex == 0)
+            {
+                await _messageModal.ShowMessage("Draw!", cancellationToken);
+                return;
+            }
+            await _messageModal.ShowMessage($"Player {playerIndex} wins!", cancellationToken);
         }
 
         private (int PlayerInxed, Card Card) ParsePlayedCard(string value)

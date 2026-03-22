@@ -38,7 +38,7 @@ namespace CardWar.View
         private float ScreenWidthWithOffset => _screenWidth - _visualConfig.ScreenOffset;
         private float _screenWidth;
         
-        public async void Init(Dictionary<string, string> config, CancellationToken cancellationToken = default)
+        public async ValueTask Init(Dictionary<string, string> config, CancellationToken cancellationToken = default)
         {
             if(!int.TryParse(config["max_cards"], out var maxCards) || maxCards < 1)
             {
@@ -47,10 +47,35 @@ namespace CardWar.View
             _screenWidth = Screen.width;
             
             InitDataStructures(maxCards);
-            InitCardsPool(maxCards);
+            ResetState();
             
+            InitCardsPool(maxCards);
+
             await RefillDeck(1, cancellationToken);
             await RefillDeck(2, cancellationToken);
+        }
+
+        private void ResetState()
+        {
+            for (int p = 1; p <= 2; p++)
+            {
+                foreach (var card in _stacks[p])
+                {
+                    card.InvokeReturnToPool();
+                }
+                _stacks[p].Clear();
+                foreach (var card in _decks[p])
+                {
+                    card.InvokeReturnToPool();
+                }
+                _decks[p].Clear();
+            }
+
+            foreach (var card in _pot)
+            {
+                card.InvokeReturnToPool();
+            }
+            _pot.Clear();
         }
 
         private void InitDataStructures(int maxCards)
@@ -150,14 +175,6 @@ namespace CardWar.View
             _pot.Add(cardView);
         }
 
-        public async Task GameOver(int playerIndex, CancellationToken cancellationToken)
-        {
-            if (playerIndex == 0) return;
-            var stack = _stacks[playerIndex];
-            if (stack.Count > 0)
-                await stack.Peek().HighlightAsync(cancellationToken);
-        }
-
         public async Task WarResolved(int playerIndex, CancellationToken cancellationToken)
         {
             await Task.Delay(TimeSpan.FromSeconds(_visualConfig.WarResolutionDelay), cancellationToken);
@@ -192,11 +209,6 @@ namespace CardWar.View
 
             card.transform.SetParent(stackParent, false);
             card.transform.localPosition = stackIndex * _visualConfig.StackOffset;
-        }
-
-        public async Task Draw(int _, CancellationToken cancellationToken)
-        {
-            //TODO modal
         }
 
         public async Task BigPot(int _, CancellationToken cancellationToken)

@@ -26,5 +26,8 @@ namespace CardWar.View.Data
         public float ShakeStrength = 10f;
         public int ShakeFrequency = 10;
         public Ease MoveEase = Ease.OutQuad;
+
+        [Header("Message Modal")] 
+        public float ScaleDuration = 0.2f;
     }
 }
