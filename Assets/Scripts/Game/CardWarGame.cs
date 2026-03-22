@@ -23,6 +23,17 @@ namespace CardWar.Game
     {
         public const int MaxCards = 52;
 
+        public const string FullDeck =
+            "Clubs:Two,Clubs:Three,Clubs:Four,Clubs:Five,Clubs:Six,Clubs:Seven,Clubs:Eight,Clubs:Nine,Clubs:Ten,Clubs:Jack,Clubs:Queen,Clubs:King,Clubs:Ace," +
+            "Diamonds:Two,Diamonds:Three,Diamonds:Four,Diamonds:Five,Diamonds:Six,Diamonds:Seven,Diamonds:Eight,Diamonds:Nine,Diamonds:Ten,Diamonds:Jack,Diamonds:Queen,Diamonds:King,Diamonds:Ace," +
+            "Hearts:Two,Hearts:Three,Hearts:Four,Hearts:Five,Hearts:Six,Hearts:Seven,Hearts:Eight,Hearts:Nine,Hearts:Ten,Hearts:Jack,Hearts:Queen,Hearts:King,Hearts:Ace," +
+            "Spades:Two,Spades:Three,Spades:Four,Spades:Five,Spades:Six,Spades:Seven,Spades:Eight,Spades:Nine,Spades:Ten,Spades:Jack,Spades:Queen,Spades:King,Spades:Ace";
+
+        // 8 cards (4 per player) — game ends in a few rounds; useful for testing GameOver and Draw
+        public const string MiniDeck =
+            "Hearts:Ace,Hearts:King,Hearts:Queen,Hearts:Jack," +
+            "Clubs:Two,Clubs:Three,Clubs:Four,Clubs:Five";
+
         private Dictionary<int, Queue<Card>> _decks;
         private Dictionary<int, List<Card>> _sidePiles;
         private Dictionary<int, Card?> _pendingCards = new(2);
@@ -34,22 +45,23 @@ namespace CardWar.Game
         private int _currentPlayerIndex = 1;
         private bool _gameFinished;
 
-        public CardWarGame()
+        public CardWarGame(string deckDefinition = FullDeck)
         {
-            SetUp();
-        }
-        
-        public void Restart()
-        {
-            SetUp();
+            SetUp(deckDefinition);
         }
 
-        private void SetUp()
+        public void Restart(string deckDefinition = FullDeck)
+        {
+            SetUp(deckDefinition);
+        }
+
+        private void SetUp(string deckDefinition)
         {
             _gameCommands.Clear();
             _gameFinished = false;
-            
-            var deck = CreateShuffledDeck();
+
+            var deck = ParseDeck(deckDefinition);
+            var half = deck.Count / 2;
             _decks = new Dictionary<int, Queue<Card>>
             {
                 { 1, new Queue<Card>() },
@@ -66,8 +78,8 @@ namespace CardWar.Game
                 { 2, null }
             };
 
-            for (var i = 0; i < MaxCards/2; i++) _decks[1].Enqueue(deck[i]);
-            for (var i = MaxCards/2; i < MaxCards; i++) _decks[2].Enqueue(deck[i]);
+            for (var i = 0; i < half; i++) _decks[1].Enqueue(deck[i]);
+            for (var i = half; i < deck.Count; i++) _decks[2].Enqueue(deck[i]);
         }
 
         internal CardWarGame(IEnumerable<Card> player1Cards, IEnumerable<Card> player2Cards)
@@ -89,12 +101,14 @@ namespace CardWar.Game
             };
         }
 
-        private static List<Card> CreateShuffledDeck()
+        private static List<Card> ParseDeck(string deckDefinition)
         {
             var deck = new List<Card>();
-            foreach (Suit suit in Enum.GetValues(typeof(Suit)))
-                foreach (Rank rank in Enum.GetValues(typeof(Rank)))
-                    deck.Add(new Card(suit, rank));
+            foreach (var entry in deckDefinition.Split(','))
+            {
+                var parts = entry.Split(':');
+                deck.Add(new Card(Enum.Parse<Suit>(parts[0]), Enum.Parse<Rank>(parts[1])));
+            }
             Shuffle(deck);
             return deck;
         }
