@@ -11,6 +11,7 @@ namespace CardWar.View
     {
         [SerializeField] private AnimationController _animationController;
         [SerializeField] private MessageModal _messageModal;
+        
         private CardWarServer _server;
         private CancellationTokenSource _gameCancellationTokenSource = new();
         private CancellationToken _gameCancellationToken => _gameCancellationTokenSource.Token;
