@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Cards;
+using UnityEditor.Experimental.GraphView;
 
 [assembly: InternalsVisibleTo("CardWar.Game.Tests")]
 
@@ -117,37 +118,48 @@ namespace CardWar.Game
             }
 
             // Both cards played, resolve
-            ResolveCards(_pendingCards[1].Value, _pendingCards[2].Value);
+            if(ResolveCards(_pendingCards[1].Value, _pendingCards[2].Value, _gameCommands))
+            {
+                return _gameCommands;
+            }
+            
             _pendingCards[1] = null;
             _pendingCards[2] = null;
             _currentPlayerIndex = 1;
-            UpdateGameState();
 
+            UpdateGameState(_gameCommands);
             return _gameCommands;
         }
 
-        private void ResolveCards(Card card1, Card card2)
+        /// <summary>
+        /// Resolve cards and return true if game ended, false if game should continue.
+        /// </summary>
+        /// <param name="card1"></param>
+        /// <param name="card2"></param>
+        /// <param name="gameCommands"></param>
+        /// <returns>Is Game finished</returns>
+        private bool ResolveCards(Card card1, Card card2, Dictionary<string, string> gameCommands)
         {
             int cmp = card1.Rank.CompareTo(card2.Rank);
             if (cmp > 0)
             {
                 AwardPotTo(_sidePiles[1]);
-                _gameCommands.Add(nameof(GameAction.WarResolved), "1");
-                return;
+                gameCommands.Add(nameof(GameAction.WarResolved), "1");
+                return false;
             }
             else if (cmp < 0)
             {
                 AwardPotTo(_sidePiles[2]);
                 _gameCommands.Add(nameof(GameAction.WarResolved), "2");
-                return;
+                return false;
             }
             else
             {
-                HandleWarSetup();
+                return HandleWarSetup(gameCommands);
             }
         }
 
-        private void HandleWarSetup()
+        private bool HandleWarSetup(Dictionary<string, string> gameCommands)
         {
             RefillIfEmpty(1);
             RefillIfEmpty(2);
@@ -158,22 +170,22 @@ namespace CardWar.Game
 
             if (!player1CanContinue && !player2CanContinue)
             {
-                _gameCommands.Add(nameof(GameAction.Draw), "0");
-                return;
+                gameCommands.Add(nameof(GameAction.Draw), "0");
+                return true;
             }
             if (!player1CanContinue)
             {
-                _gameCommands.Add(nameof(GameAction.GameOver), "2");
-                return;
+                gameCommands.Add(nameof(GameAction.GameOver), "2");
+                return true;
             }
             if (!player2CanContinue)
             {
-                _gameCommands.Add(nameof(GameAction.GameOver), "1");
-                return;
+                gameCommands.Add(nameof(GameAction.GameOver), "1");
+                return true;
             }
 
             // 3 face-down cards each
-            _gameCommands.Add(nameof(GameAction.BigPot), "0");
+            gameCommands.Add(nameof(GameAction.BigPot), "0");
             for (int i = 0; i < 3; i++)
             {
                 _pot.Add(_decks[1].Dequeue());
@@ -183,11 +195,11 @@ namespace CardWar.Game
             // 1 face-up card each
             var playerFaceUp = _decks[1].Dequeue();
             var opponentFaceUp = _decks[2].Dequeue();
-            _gameCommands.Add(nameof(GameAction.SmallPot), $"{playerFaceUp.Suit}:{playerFaceUp.Rank}|{opponentFaceUp.Suit}:{opponentFaceUp.Rank}");
+            gameCommands.Add(nameof(GameAction.SmallPot), $"{playerFaceUp.Suit}:{playerFaceUp.Rank}|{opponentFaceUp.Suit}:{opponentFaceUp.Rank}");
             _pot.Add(playerFaceUp);
             _pot.Add(opponentFaceUp);
 
-            ResolveCards(playerFaceUp, opponentFaceUp);
+            return ResolveCards(playerFaceUp, opponentFaceUp, gameCommands);
         }
 
         private void AwardPotTo(List<Card> sidePile)
@@ -196,23 +208,33 @@ namespace CardWar.Game
             _pot.Clear();
         }
 
-        private void UpdateGameState()
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="commands"></param>
+        /// <returns>True if the game finished</returns>
+        private bool UpdateGameState(Dictionary<string, string> commands)
         {
             var player1Empty = PlayerCardCount(1) == 0;
             var player2Empty = PlayerCardCount(2) == 0;
 
             if (player1Empty && player2Empty)
             {
-                _gameCommands.Add(nameof(GameAction.Draw), "0");
+                commands.Add(nameof(GameAction.Draw), "0");
+                return true;
             }
             else if (player1Empty)
             {
-                _gameCommands.Add(nameof(GameAction.GameOver), "2");
+                commands.Add(nameof(GameAction.GameOver), "2");
+                return true;
             }
             else if (player2Empty)
             {
-                _gameCommands.Add(nameof(GameAction.GameOver), "1");
+                commands.Add(nameof(GameAction.GameOver), "1");
+                return true;
             }
+            
+            return false;
         }
 
         private void RefillIfEmpty(int playerIndex)
